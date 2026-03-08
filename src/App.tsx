@@ -49,6 +49,7 @@ const App = () => (
               <Routes>
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/docs" element={<ProtectedRoute><div className="min-h-screen bg-background p-4 max-w-2xl mx-auto"><Documentation /></div></ProtectedRoute>} />
                 <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/expenses" element={<Expenses />} />
@@ -62,7 +63,6 @@ const App = () => (
                   <Route path="/sms-parser" element={<SmsParser />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/settings" element={<Settings />} />
-                  <Route path="/docs" element={<Documentation />} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
               </Routes>
