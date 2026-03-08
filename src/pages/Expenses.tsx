@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { fetchTransactions, addTransaction, formatTZS, type Transaction } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, ArrowUpRight, ArrowDownRight, X, WifiOff } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight, X, WifiOff, MessageSquare, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { saveOfflineTransaction, isOnline } from '@/lib/offline-db';
+import { supabase } from '@/integrations/supabase/client';
 
 const categoryColors: Record<string, string> = {
   Food: 'hsl(25,85%,55%)', Transport: 'hsl(210,70%,50%)', Rent: 'hsl(280,60%,55%)',
@@ -25,17 +26,50 @@ const Expenses = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [newTx, setNewTx] = useState({ amount: '', category: 'Food', description: '', type: 'expense' as 'income' | 'expense' });
+  const [smsText, setSmsText] = useState('');
+  const [smsMode, setSmsMode] = useState(false);
+  const [parsing, setParsing] = useState(false);
 
   const mutation = useMutation({
     mutationFn: addTransaction,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       setNewTx({ amount: '', category: 'Food', description: '', type: 'expense' });
+      setSmsText('');
+      setSmsMode(false);
       setShowAdd(false);
       toast.success('Transaction added!');
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const handleParseSms = async () => {
+    if (!smsText.trim()) return;
+    setParsing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sms-parser', {
+        body: { messages: [smsText.trim()] },
+      });
+      if (error) throw error;
+      const parsed = data?.transactions?.[0];
+      if (!parsed) {
+        toast.error('Could not parse SMS. Try entering details manually.');
+        return;
+      }
+      setNewTx({
+        amount: String(parsed.amount || ''),
+        category: parsed.category || 'Other',
+        description: parsed.description || smsText.trim().slice(0, 50),
+        type: parsed.type || 'expense',
+      });
+      setSmsMode(false);
+      toast.success('SMS parsed! Review and save.');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to parse SMS');
+    } finally {
+      setParsing(false);
+    }
+  };
 
   const filtered = txs.filter(tx => filter === 'all' || tx.type === filter);
   const expenses = txs.filter(tx => tx.type === 'expense');
@@ -48,7 +82,6 @@ const Expenses = () => {
     if (!newTx.amount || !newTx.description) return;
 
     if (!isOnline()) {
-      // Save offline
       await saveOfflineTransaction({
         amount: parseInt(newTx.amount),
         type: newTx.type,
@@ -143,6 +176,39 @@ const Expenses = () => {
                 <h2 className="text-lg font-bold font-display">{t('exp.add')}</h2>
                 <button onClick={() => setShowAdd(false)} className="text-muted-foreground"><X size={20} /></button>
               </div>
+
+              {/* SMS Parse toggle */}
+              <button
+                onClick={() => setSmsMode(!smsMode)}
+                className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium mb-3 transition-colors ${smsMode ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-muted text-muted-foreground'}`}
+              >
+                <MessageSquare size={14} />
+                {smsMode ? 'Parsing from SMS — paste below' : 'Paste SMS to auto-fill (optional)'}
+              </button>
+
+              <AnimatePresence>
+                {smsMode && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-3">
+                    <textarea
+                      placeholder="Paste M-Pesa, Airtel Money, or Tigo Pesa SMS here..."
+                      value={smsText}
+                      onChange={e => setSmsText(e.target.value)}
+                      rows={3}
+                      className="w-full rounded-xl border border-input bg-background px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                    />
+                    <Button
+                      onClick={handleParseSms}
+                      disabled={parsing || !smsText.trim()}
+                      size="sm"
+                      className="w-full mt-2 rounded-xl gap-1.5"
+                      variant="secondary"
+                    >
+                      {parsing ? <><Loader2 size={14} className="animate-spin" /> Parsing...</> : 'Parse SMS'}
+                    </Button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <div className="flex gap-2 mb-4">
                 {(['expense', 'income'] as const).map(tp => (
                   <button key={tp} onClick={() => setNewTx(p => ({ ...p, type: tp }))} className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${newTx.type === tp ? (tp === 'expense' ? 'bg-destructive text-destructive-foreground' : 'bg-success text-success-foreground') : 'bg-muted text-muted-foreground'}`}>
