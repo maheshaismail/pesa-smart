@@ -3,15 +3,17 @@ import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
-import { User, Globe, LogOut, Shield } from 'lucide-react';
+import { User, Globe, LogOut, Shield, Sun, Moon, Monitor } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 
 const Settings = () => {
   const { t, lang, setLang } = useI18n();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
@@ -41,6 +43,12 @@ const Settings = () => {
     navigate('/auth');
   };
 
+  const themeOptions = [
+    { key: 'light', label: 'Light', icon: Sun },
+    { key: 'dark', label: 'Dark', icon: Moon },
+    { key: 'system', label: 'System', icon: Monitor },
+  ] as const;
+
   return (
     <div className="space-y-5 pb-24 pt-2">
       <h1 className="text-xl font-bold font-display">{t('gen.settings')}</h1>
@@ -54,6 +62,19 @@ const Settings = () => {
         <Button onClick={handleSave} disabled={saving} className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3 text-sm">
           {saving ? 'Saving...' : 'Update Profile'}
         </Button>
+      </motion.div>
+
+      {/* Theme */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 }} className="rounded-xl bg-card p-4 shadow-card space-y-3">
+        <h3 className="text-sm font-semibold font-display flex items-center gap-1.5"><Sun size={14} className="text-primary" /> Theme</h3>
+        <div className="flex rounded-xl bg-muted p-1">
+          {themeOptions.map(({ key, label, icon: Icon }) => (
+            <button key={key} onClick={() => setTheme(key)} className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${theme === key ? 'bg-card shadow-card text-foreground' : 'text-muted-foreground'}`}>
+              <Icon size={14} />
+              {label}
+            </button>
+          ))}
+        </div>
       </motion.div>
 
       {/* Language */}
