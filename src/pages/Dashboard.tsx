@@ -4,9 +4,12 @@ import { fetchTransactions, formatTZS, getFinancialSummary, type Transaction } f
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Wallet, Heart, Lightbulb, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { useSmartNotifications } from '@/components/SmartNotifications';
+import { runAllAlertChecks, requestNotificationPermission } from '@/lib/notifications';
+import { syncPendingTransactions, } from '@/lib/sync';
+import { getPendingCount } from '@/lib/offline-db';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
@@ -17,16 +20,26 @@ const Dashboard = () => {
   const { t } = useI18n();
   const { user } = useAuth();
   const { generateInsights } = useSmartNotifications();
+  const queryClient = useQueryClient();
   const { data: transactions = [] } = useQuery({
     queryKey: ['transactions'],
     queryFn: fetchTransactions,
   });
 
-  // Auto-generate insights when transactions load
+  // Auto-generate insights, sync offline data, check alerts
   useEffect(() => {
     if (transactions.length > 0) {
       generateInsights();
+      runAllAlertChecks();
     }
+    // Sync any offline transactions
+    syncPendingTransactions().then(count => {
+      if (count > 0) {
+        queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      }
+    });
+    // Request notification permission (non-blocking)
+    requestNotificationPermission();
   }, [transactions.length > 0]);
 
   const summary = getFinancialSummary(transactions);

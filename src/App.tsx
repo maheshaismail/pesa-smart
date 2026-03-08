@@ -17,6 +17,7 @@ import Investments from "@/pages/Investments";
 import Bills from "@/pages/Bills";
 import Settings from "@/pages/Settings";
 import SmsParser from "@/pages/SmsParser";
+import Reports from "@/pages/Reports";
 import Auth from "@/pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -54,6 +55,7 @@ const App = () => (
                 <Route path="/bills" element={<Bills />} />
                 <Route path="/advisor" element={<Advisor />} />
                 <Route path="/sms-parser" element={<SmsParser />} />
+                <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>
               <Route path="*" element={<NotFound />} />
