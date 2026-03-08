@@ -25,11 +25,20 @@ const Dashboard = () => {
     queryFn: fetchTransactions,
   });
 
-  // Auto-generate insights when transactions load
+  // Auto-generate insights, sync offline data, check alerts
   useEffect(() => {
     if (transactions.length > 0) {
       generateInsights();
+      runAllAlertChecks();
     }
+    // Sync any offline transactions
+    syncPendingTransactions().then(count => {
+      if (count > 0) {
+        queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      }
+    });
+    // Request notification permission (non-blocking)
+    requestNotificationPermission();
   }, [transactions.length > 0]);
 
   const summary = getFinancialSummary(transactions);
