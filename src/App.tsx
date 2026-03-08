@@ -22,6 +22,7 @@ import Reports from "@/pages/Reports";
 import Auth from "@/pages/Auth";
 import NotFound from "./pages/NotFound";
 import ResetPassword from "./pages/ResetPassword";
+import Documentation from "./pages/Documentation";
 
 const queryClient = new QueryClient();
 
