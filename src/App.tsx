@@ -21,6 +21,7 @@ import SmsParser from "@/pages/SmsParser";
 import Reports from "@/pages/Reports";
 import Auth from "@/pages/Auth";
 import NotFound from "./pages/NotFound";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
