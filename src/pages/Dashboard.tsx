@@ -1,20 +1,25 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
-import { fetchTransactions, formatTZS, getFinancialSummary, type Transaction } from '@/lib/api';
-import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Wallet, Heart, Lightbulb, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { fetchTransactions, addTransaction, formatTZS, getFinancialSummary, type Transaction } from '@/lib/api';
+import { motion, AnimatePresence } from 'framer-motion';
+import { TrendingUp, TrendingDown, Wallet, Heart, Lightbulb, ArrowUpRight, ArrowDownRight, Plus, X } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { useSmartNotifications } from '@/components/SmartNotifications';
 import { runAllAlertChecks, requestNotificationPermission } from '@/lib/notifications';
-import { syncPendingTransactions, } from '@/lib/sync';
-import { getPendingCount } from '@/lib/offline-db';
+import { syncPendingTransactions } from '@/lib/sync';
+import { getPendingCount, saveOfflineTransaction, isOnline } from '@/lib/offline-db';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
   show: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.4 } }),
 };
+
+const categories = ['Food', 'Transport', 'Rent', 'Utilities', 'Entertainment', 'Education', 'Business', 'Salary', 'Freelance', 'Other'];
+const quickAmounts = [1000, 2000, 5000, 10000, 20000, 50000];
 
 const Dashboard = () => {
   const { t } = useI18n();
@@ -25,27 +30,59 @@ const Dashboard = () => {
     queryKey: ['transactions'],
     queryFn: fetchTransactions,
   });
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [quickTx, setQuickTx] = useState({ amount: '', category: 'Food', description: '', type: 'expense' as 'income' | 'expense' });
 
-  // Auto-generate insights, sync offline data, check alerts
+  const addMutation = useMutation({
+    mutationFn: addTransaction,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      setShowQuickAdd(false);
+      setQuickTx({ amount: '', category: 'Food', description: '', type: 'expense' });
+      toast.success('Transaction added!');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const handleQuickSubmit = async () => {
+    if (!quickTx.amount) return;
+    if (!isOnline()) {
+      await saveOfflineTransaction({
+        amount: parseInt(quickTx.amount),
+        type: quickTx.type,
+        category: quickTx.category,
+        description: quickTx.description || quickTx.category,
+        transaction_date: new Date().toISOString().split('T')[0],
+      });
+      setShowQuickAdd(false);
+      setQuickTx({ amount: '', category: 'Food', description: '', type: 'expense' });
+      toast.success('Saved offline! Will sync when back online.', { icon: '📴' });
+      return;
+    }
+    addMutation.mutate({
+      amount: parseInt(quickTx.amount),
+      type: quickTx.type,
+      category: quickTx.category,
+      description: quickTx.description || quickTx.category,
+    });
+  };
+
   useEffect(() => {
     if (transactions.length > 0) {
       generateInsights();
       runAllAlertChecks();
     }
-    // Sync any offline transactions
     syncPendingTransactions().then(count => {
       if (count > 0) {
         queryClient.invalidateQueries({ queryKey: ['transactions'] });
       }
     });
-    // Request notification permission (non-blocking)
     requestNotificationPermission();
   }, [transactions.length > 0]);
 
   const summary = getFinancialSummary(transactions);
   const name = user?.user_metadata?.full_name || 'there';
 
-  // Build monthly chart data from transactions
   const monthlyMap = new Map<string, { income: number; expenses: number }>();
   transactions.forEach(tx => {
     const d = new Date(tx.transaction_date);
@@ -76,12 +113,17 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-5 pb-24 pt-2">
-      <motion.div variants={fadeUp} initial="hidden" animate="show" custom={0}>
-        <p className="text-muted-foreground text-sm">{t('dash.greeting')}, {name} 👋</p>
-        <h1 className="text-2xl font-bold font-display">{t('dash.balance')}</h1>
-        <p className="text-3xl font-bold font-display text-primary mt-1">
-          {formatTZS(summary.balance)} <span className="text-sm font-normal text-muted-foreground">TZS</span>
-        </p>
+      <motion.div variants={fadeUp} initial="hidden" animate="show" custom={0} className="flex items-start justify-between">
+        <div>
+          <p className="text-muted-foreground text-sm">{t('dash.greeting')}, {name} 👋</p>
+          <h1 className="text-2xl font-bold font-display">{t('dash.balance')}</h1>
+          <p className="text-3xl font-bold font-display text-primary mt-1">
+            {formatTZS(summary.balance)} <span className="text-sm font-normal text-muted-foreground">TZS</span>
+          </p>
+        </div>
+        <Button onClick={() => setShowQuickAdd(true)} size="sm" className="gap-1.5 gradient-primary border-0 text-primary-foreground rounded-xl mt-1">
+          <Plus size={16} /> Quick Add
+        </Button>
       </motion.div>
 
       <motion.div variants={fadeUp} initial="hidden" animate="show" custom={1} className="grid grid-cols-3 gap-3">
@@ -187,6 +229,100 @@ const Dashboard = () => {
           </div>
         )}
       </motion.div>
+
+      {/* Quick Add Modal */}
+      <AnimatePresence>
+        {showQuickAdd && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-foreground/30 glass flex items-end justify-center" onClick={() => setShowQuickAdd(false)}>
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} className="w-full max-w-md rounded-t-2xl bg-card p-5 safe-bottom max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold font-display">Quick Add</h2>
+                <button onClick={() => setShowQuickAdd(false)} className="text-muted-foreground"><X size={20} /></button>
+              </div>
+
+              <div className="space-y-3">
+                {/* Type toggle */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setQuickTx(p => ({ ...p, type: 'expense' }))}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${quickTx.type === 'expense' ? 'bg-destructive text-destructive-foreground' : 'bg-muted text-muted-foreground'}`}
+                  >
+                    Expense
+                  </button>
+                  <button
+                    onClick={() => setQuickTx(p => ({ ...p, type: 'income' }))}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${quickTx.type === 'income' ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground'}`}
+                  >
+                    Income
+                  </button>
+                </div>
+
+                {/* Quick amounts */}
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1.5 block">Quick amount (TZS)</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {quickAmounts.map(amt => (
+                      <button
+                        key={amt}
+                        onClick={() => setQuickTx(p => ({ ...p, amount: String(amt) }))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          quickTx.amount === String(amt) ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {formatTZS(amt)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom amount */}
+                <input
+                  type="number"
+                  placeholder="Or enter custom amount (TZS)"
+                  value={quickTx.amount}
+                  onChange={e => setQuickTx(p => ({ ...p, amount: e.target.value }))}
+                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+
+                {/* Category chips */}
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1.5 block">Category</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {categories.map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setQuickTx(p => ({ ...p, category: cat }))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          quickTx.category === cat ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Description */}
+                <input
+                  type="text"
+                  placeholder="Description (optional)"
+                  value={quickTx.description}
+                  onChange={e => setQuickTx(p => ({ ...p, description: e.target.value }))}
+                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+
+                <Button
+                  onClick={handleQuickSubmit}
+                  disabled={addMutation.isPending || !quickTx.amount}
+                  className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3"
+                >
+                  {addMutation.isPending ? 'Saving...' : `Add ${quickTx.type === 'income' ? 'Income' : 'Expense'} — ${quickTx.amount ? formatTZS(parseInt(quickTx.amount)) + ' TZS' : ''}`}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
