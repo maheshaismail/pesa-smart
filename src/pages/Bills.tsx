@@ -96,13 +96,48 @@ const Bills = () => {
 
   const togglePaid = useMutation({
     mutationFn: async (bill: BillReminder) => {
+      const markingPaid = !bill.is_paid;
+      const today = new Date().toISOString().split('T')[0];
+
       const { error } = await supabase.from('bill_reminders').update({
-        is_paid: !bill.is_paid,
-        paid_date: !bill.is_paid ? new Date().toISOString().split('T')[0] : null,
+        is_paid: markingPaid,
+        paid_date: markingPaid ? today : null,
       }).eq('id', bill.id);
       if (error) throw error;
+
+      if (markingPaid) {
+        // Record as expense transaction
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+        const { error: txError } = await supabase.from('transactions').insert({
+          user_id: user.id,
+          amount: bill.amount,
+          type: 'expense' as const,
+          category: bill.category,
+          description: `Bill payment: ${bill.name}`,
+          source: 'bill_payment',
+          transaction_date: today,
+        });
+        if (txError) throw txError;
+      } else {
+        // Remove the auto-recorded expense when unmarking
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && bill.paid_date) {
+          await supabase.from('transactions').delete()
+            .eq('user_id', user.id)
+            .eq('source', 'bill_payment')
+            .eq('description', `Bill payment: ${bill.name}`)
+            .eq('transaction_date', bill.paid_date);
+        }
+      }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['bills'] }),
+    onSuccess: (_data, bill) => {
+      qc.invalidateQueries({ queryKey: ['bills'] });
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+      const paid = !bill.is_paid;
+      toast.success(paid ? `${bill.name} marked paid & recorded as expense` : `${bill.name} unmarked — expense removed`);
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const handleEdit = (bill: BillReminder) => {
