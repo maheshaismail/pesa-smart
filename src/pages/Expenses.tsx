@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useI18n } from '@/lib/i18n';
-import { fetchTransactions, addTransaction, updateTransaction, deleteTransaction, formatTZS, type Transaction } from '@/lib/api';
+import { fetchTransactions, addTransaction, updateTransaction, deleteTransaction, bulkDeleteTransactions, formatTZS, type Transaction } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, ArrowUpRight, ArrowDownRight, X, MessageSquare, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight, X, MessageSquare, Loader2, Pencil, Trash2, CheckSquare, Square, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -36,127 +36,109 @@ const Expenses = () => {
   const [parsing, setParsing] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['transactions'] });
 
   const addMutation = useMutation({
     mutationFn: addTransaction,
-    onSuccess: () => {
-      invalidate();
-      resetForm();
-      toast.success('Transaction added!');
-    },
+    onSuccess: () => { invalidate(); resetForm(); toast.success('Transaction added!'); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const editMutation = useMutation({
     mutationFn: ({ id, ...updates }: { id: string; amount: number; type: 'income' | 'expense'; category: string; description: string }) =>
       updateTransaction(id, updates),
-    onSuccess: () => {
-      invalidate();
-      resetForm();
-      toast.success('Transaction updated!');
-    },
+    onSuccess: () => { invalidate(); resetForm(); toast.success('Transaction updated!'); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteTransaction,
+    onSuccess: () => { invalidate(); setDeleteId(null); toast.success('Transaction deleted!'); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: bulkDeleteTransactions,
     onSuccess: () => {
       invalidate();
-      setDeleteId(null);
-      toast.success('Transaction deleted!');
+      setShowBulkDelete(false);
+      setSelected(new Set());
+      setSelectMode(false);
+      toast.success(`${selected.size} transactions deleted!`);
     },
     onError: (e: any) => toast.error(e.message),
   });
 
   const resetForm = () => {
     setNewTx({ amount: '', category: 'Food', description: '', type: 'expense' });
-    setSmsText('');
-    setSmsMode(false);
-    setShowAdd(false);
-    setEditingTx(null);
+    setSmsText(''); setSmsMode(false); setShowAdd(false); setEditingTx(null);
   };
 
   const handleEditClick = (tx: Transaction) => {
     setEditingTx(tx);
-    setNewTx({
-      amount: String(tx.amount),
-      category: tx.category,
-      description: tx.description || '',
-      type: tx.type,
-    });
+    setNewTx({ amount: String(tx.amount), category: tx.category, description: tx.description || '', type: tx.type });
     setShowAdd(true);
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selected.size === filtered.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map(tx => tx.id)));
+    }
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelected(new Set());
   };
 
   const handleParseSms = async () => {
     if (!smsText.trim()) return;
     setParsing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sms-parser', {
-        body: { messages: [smsText.trim()] },
-      });
+      const { data, error } = await supabase.functions.invoke('sms-parser', { body: { messages: [smsText.trim()] } });
       if (error) throw error;
       const parsed = data?.transactions?.[0];
-      if (!parsed) {
-        toast.error('Could not parse SMS. Try entering details manually.');
-        return;
-      }
-      setNewTx({
-        amount: String(parsed.amount || ''),
-        category: parsed.category || 'Other',
-        description: parsed.description || smsText.trim().slice(0, 50),
-        type: parsed.type || 'expense',
-      });
+      if (!parsed) { toast.error('Could not parse SMS. Try entering details manually.'); return; }
+      setNewTx({ amount: String(parsed.amount || ''), category: parsed.category || 'Other', description: parsed.description || smsText.trim().slice(0, 50), type: parsed.type || 'expense' });
       setSmsMode(false);
       toast.success('SMS parsed! Review and save.');
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to parse SMS');
-    } finally {
-      setParsing(false);
-    }
+    } catch (e: any) { toast.error(e.message || 'Failed to parse SMS'); }
+    finally { setParsing(false); }
   };
 
   const filtered = txs.filter(tx => filter === 'all' || tx.type === filter);
   const expenses = txs.filter(tx => tx.type === 'expense');
   const catData = categories.map(cat => ({
-    name: cat,
-    value: expenses.filter(tx => tx.category === cat).reduce((s, tx) => s + Number(tx.amount), 0),
+    name: cat, value: expenses.filter(tx => tx.category === cat).reduce((s, tx) => s + Number(tx.amount), 0),
   })).filter(c => c.value > 0);
 
   const handleSubmit = async () => {
     if (!newTx.amount || !newTx.description) return;
-
     if (editingTx) {
-      editMutation.mutate({
-        id: editingTx.id,
-        amount: parseInt(newTx.amount),
-        type: newTx.type,
-        category: newTx.category,
-        description: newTx.description,
-      });
+      editMutation.mutate({ id: editingTx.id, amount: parseInt(newTx.amount), type: newTx.type, category: newTx.category, description: newTx.description });
       return;
     }
-
     if (!isOnline()) {
-      await saveOfflineTransaction({
-        amount: parseInt(newTx.amount),
-        type: newTx.type,
-        category: newTx.category,
-        description: newTx.description,
-        transaction_date: new Date().toISOString().split('T')[0],
-      });
+      await saveOfflineTransaction({ amount: parseInt(newTx.amount), type: newTx.type, category: newTx.category, description: newTx.description, transaction_date: new Date().toISOString().split('T')[0] });
       resetForm();
       toast.success('Saved offline! Will sync when back online.', { icon: '📴' });
       return;
     }
-
-    addMutation.mutate({
-      amount: parseInt(newTx.amount),
-      type: newTx.type,
-      category: newTx.category,
-      description: newTx.description,
-    });
+    addMutation.mutate({ amount: parseInt(newTx.amount), type: newTx.type, category: newTx.category, description: newTx.description });
   };
 
   const isSaving = addMutation.isPending || editMutation.isPending;
@@ -165,12 +147,49 @@ const Expenses = () => {
     <div className="space-y-5 pb-24 pt-2">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold font-display">{t('nav.expenses')}</h1>
-        <Button onClick={() => { setEditingTx(null); setNewTx({ amount: '', category: 'Food', description: '', type: 'expense' }); setShowAdd(true); }} size="sm" className="gap-1.5 gradient-primary border-0 text-primary-foreground rounded-xl">
-          <Plus size={16} /> {t('exp.add')}
-        </Button>
+        <div className="flex items-center gap-2">
+          {filtered.length > 0 && !selectMode && (
+            <Button onClick={() => setSelectMode(true)} size="sm" variant="outline" className="gap-1.5 rounded-xl text-xs">
+              <CheckSquare size={14} /> Select
+            </Button>
+          )}
+          <Button onClick={() => { setEditingTx(null); setNewTx({ amount: '', category: 'Food', description: '', type: 'expense' }); setShowAdd(true); }} size="sm" className="gap-1.5 gradient-primary border-0 text-primary-foreground rounded-xl">
+            <Plus size={16} /> {t('exp.add')}
+          </Button>
+        </div>
       </div>
 
-      {catData.length > 0 && (
+      {/* Bulk select toolbar */}
+      <AnimatePresence>
+        {selectMode && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+            <div className="flex items-center justify-between rounded-xl bg-muted p-3">
+              <div className="flex items-center gap-3">
+                <button onClick={exitSelectMode} className="text-muted-foreground hover:text-foreground">
+                  <XCircle size={18} />
+                </button>
+                <span className="text-sm font-medium">{selected.size} selected</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button onClick={toggleSelectAll} size="sm" variant="ghost" className="text-xs h-8">
+                  {selected.size === filtered.length ? 'Deselect all' : 'Select all'}
+                </Button>
+                <Button
+                  onClick={() => setShowBulkDelete(true)}
+                  size="sm"
+                  variant="destructive"
+                  disabled={selected.size === 0}
+                  className="text-xs h-8 gap-1"
+                >
+                  <Trash2 size={12} /> Delete ({selected.size})
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {catData.length > 0 && !selectMode && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl bg-card p-4 shadow-card">
           <h3 className="text-sm font-semibold font-display mb-2">Spending Breakdown</h3>
           <div className="h-44 flex items-center">
@@ -209,8 +228,23 @@ const Expenses = () => {
         <div className="space-y-2">
           {filtered.map((tx) => (
             <SwipeToDelete key={tx.id} onDelete={() => setDeleteId(tx.id)}>
-              <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between rounded-xl bg-card p-3 shadow-card">
+              <motion.div
+                layout
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                onClick={selectMode ? () => toggleSelect(tx.id) : undefined}
+                className={`flex items-center justify-between rounded-xl bg-card p-3 shadow-card transition-colors ${selectMode ? 'cursor-pointer' : ''} ${selected.has(tx.id) ? 'ring-2 ring-primary bg-primary/5' : ''}`}
+              >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {selectMode && (
+                    <div className="shrink-0">
+                      {selected.has(tx.id) ? (
+                        <CheckSquare size={18} className="text-primary" />
+                      ) : (
+                        <Square size={18} className="text-muted-foreground" />
+                      )}
+                    </div>
+                  )}
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${tx.type === 'income' ? 'bg-success/10' : 'bg-destructive/10'}`}>
                     {tx.type === 'income' ? <ArrowUpRight size={16} className="text-success" /> : <ArrowDownRight size={16} className="text-destructive" />}
                   </div>
@@ -223,12 +257,16 @@ const Expenses = () => {
                   <p className={`text-sm font-semibold font-display ${tx.type === 'income' ? 'text-success' : 'text-destructive'}`}>
                     {tx.type === 'income' ? '+' : '-'}{formatTZS(Number(tx.amount))}
                   </p>
-                  <button onClick={() => handleEditClick(tx)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors">
-                    <Pencil size={14} />
-                  </button>
-                  <button onClick={() => setDeleteId(tx.id)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                    <Trash2 size={14} />
-                  </button>
+                  {!selectMode && (
+                    <>
+                      <button onClick={() => handleEditClick(tx)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => setDeleteId(tx.id)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  )}
                 </div>
               </motion.div>
             </SwipeToDelete>
@@ -236,7 +274,7 @@ const Expenses = () => {
         </div>
       )}
 
-      {/* Delete confirmation */}
+      {/* Single delete confirmation */}
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent className="max-w-sm rounded-2xl">
           <AlertDialogHeader>
@@ -245,11 +283,24 @@ const Expenses = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={() => deleteId && deleteMutation.mutate(deleteId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk delete confirmation */}
+      <AlertDialog open={showBulkDelete} onOpenChange={(open) => !open && setShowBulkDelete(false)}>
+        <AlertDialogContent className="max-w-sm rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selected.size} Transactions</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently delete {selected.size} selected transactions. This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => bulkDeleteMutation.mutate([...selected])} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {bulkDeleteMutation.isPending ? 'Deleting...' : `Delete ${selected.size}`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -265,34 +316,17 @@ const Expenses = () => {
                 <button onClick={resetForm} className="text-muted-foreground"><X size={20} /></button>
               </div>
 
-              {/* SMS Parse toggle — only in add mode */}
               {!editingTx && (
                 <>
-                  <button
-                    onClick={() => setSmsMode(!smsMode)}
-                    className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium mb-3 transition-colors ${smsMode ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-muted text-muted-foreground'}`}
-                  >
+                  <button onClick={() => setSmsMode(!smsMode)} className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium mb-3 transition-colors ${smsMode ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-muted text-muted-foreground'}`}>
                     <MessageSquare size={14} />
                     {smsMode ? 'Parsing from SMS — paste below' : 'Paste SMS to auto-fill (optional)'}
                   </button>
-
                   <AnimatePresence>
                     {smsMode && (
                       <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-3">
-                        <textarea
-                          placeholder="Paste M-Pesa, Airtel Money, or Tigo Pesa SMS here..."
-                          value={smsText}
-                          onChange={e => setSmsText(e.target.value)}
-                          rows={3}
-                          className="w-full rounded-xl border border-input bg-background px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                        />
-                        <Button
-                          onClick={handleParseSms}
-                          disabled={parsing || !smsText.trim()}
-                          size="sm"
-                          className="w-full mt-2 rounded-xl gap-1.5"
-                          variant="secondary"
-                        >
+                        <textarea placeholder="Paste M-Pesa, Airtel Money, or Tigo Pesa SMS here..." value={smsText} onChange={e => setSmsText(e.target.value)} rows={3} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
+                        <Button onClick={handleParseSms} disabled={parsing || !smsText.trim()} size="sm" className="w-full mt-2 rounded-xl gap-1.5" variant="secondary">
                           {parsing ? <><Loader2 size={14} className="animate-spin" /> Parsing...</> : 'Parse SMS'}
                         </Button>
                       </motion.div>

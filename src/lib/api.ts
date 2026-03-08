@@ -81,6 +81,11 @@ export async function deleteTransaction(id: string) {
   if (error) throw error;
 }
 
+export async function bulkDeleteTransactions(ids: string[]) {
+  const { error } = await supabase.from('transactions').delete().in('id', ids);
+  if (error) throw error;
+}
+
 export async function fetchBudgetCategories() {
   const { data, error } = await supabase
     .from('budget_categories')
