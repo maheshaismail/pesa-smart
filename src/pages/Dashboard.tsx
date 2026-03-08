@@ -7,6 +7,9 @@ import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'rec
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { useSmartNotifications } from '@/components/SmartNotifications';
+import { runAllAlertChecks, requestNotificationPermission } from '@/lib/notifications';
+import { syncPendingTransactions, } from '@/lib/sync';
+import { getPendingCount } from '@/lib/offline-db';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
