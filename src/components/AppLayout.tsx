@@ -75,7 +75,7 @@ const AppLayout = () => {
         )}
       </AnimatePresence>
 
-      <main className="px-4">
+      <main className="px-4 pb-20">
         <Outlet />
       </main>
       <BottomNav />
