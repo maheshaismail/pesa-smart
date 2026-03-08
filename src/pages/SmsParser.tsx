@@ -19,11 +19,15 @@ interface ParsedTransaction {
   selected?: boolean;
 }
 
-const sampleSMS = `Confirmed. Ksh 50,000.00 received from JOHN DOE 0712345678 on 15/2/26 at 10:30 AM. New M-PESA balance is Ksh 75,000.00.
+const sampleSMS = `Umepokea TZS 200,000 kutoka kwa JOHN DOE 0754123456 kupitia M-Pesa tarehe 15/03/2026. Salio lako ni TZS 350,000.
 
-Confirmed. Ksh 15,000.00 sent to TANESCO LUKU 12345678 on 16/2/26 at 2:15 PM. New M-PESA balance is Ksh 60,000.00.
+Umetuma TZS 50,000 kwa TANESCO LUKU 12345678 kupitia M-Pesa tarehe 16/03/2026. Salio lako ni TZS 300,000.
 
-Umepokea TZS 200,000 kutoka kwa JANE SMITH kupitia M-Pesa tarehe 17/02/2026.`;
+You have received TZS 150,000 from JANE SMITH 0685123456 via Airtel Money on 17/03/2026. Your balance is TZS 450,000.
+
+Umepokea TZS 100,000 kutoka kwa ALI HASSAN 0625123456 kupitia HaloPesa. Salio lako ni TZS 200,000. Nambari ya muamala: HP123456789.
+
+Umepokea TZS 75,000 kutoka kwa FATMA OMAR 0715123456 kupitia Tigo Pesa tarehe 18/03/2026.`;
 
 const SmsParser = () => {
   const { t } = useI18n();
