@@ -245,13 +245,78 @@ const Expenses = () => {
         </motion.div>
       )}
 
-      <div className="flex gap-2">
-        {(['all', 'income', 'expense'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-            {f === 'all' ? 'All' : f === 'income' ? t('dash.income') : t('dash.expenses')}
-          </button>
-        ))}
+      <div className="flex items-center gap-2">
+        <div className="flex gap-2 flex-1">
+          {(['all', 'income', 'expense'] as const).map(f => (
+            <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+              {f === 'all' ? 'All' : f === 'income' ? t('dash.income') : t('dash.expenses')}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className={`p-2 rounded-lg transition-colors relative ${showFilters || hasActiveFilters ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}
+        >
+          <Filter size={14} />
+          {hasActiveFilters && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary" />}
+        </button>
       </div>
+
+      {/* Search & Date Filters */}
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+            <div className="space-y-2.5 rounded-xl bg-card p-3 shadow-card">
+              {/* Search */}
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search transactions..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              {/* Date range */}
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("flex-1 justify-start text-left text-xs rounded-lg h-10", !dateFrom && "text-muted-foreground")}>
+                      <CalendarIcon size={12} className="mr-1.5" />
+                      {dateFrom ? format(dateFrom, 'MMM dd, yyyy') : 'From date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("flex-1 justify-start text-left text-xs rounded-lg h-10", !dateTo && "text-muted-foreground")}>
+                      <CalendarIcon size={12} className="mr-1.5" />
+                      {dateTo ? format(dateTo, 'MMM dd, yyyy') : 'To date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {hasActiveFilters && (
+                <button onClick={clearFilters} className="text-xs text-primary font-medium flex items-center gap-1">
+                  <X size={12} /> Clear filters
+                </button>
+              )}
+
+              <p className="text-xs text-muted-foreground">{filtered.length} transaction{filtered.length !== 1 ? 's' : ''} found</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">No transactions yet</p>
