@@ -8,7 +8,7 @@ const mainNav = [
   { path: '/', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
   { path: '/expenses', icon: Receipt, labelKey: 'nav.expenses' },
   { path: '/budget', icon: PiggyBank, labelKey: 'nav.budget' },
-  { path: '/savings', icon: Target, labelKey: 'nav.savings' },
+  { path: '/bills', icon: Bell, labelKey: 'nav.bills' },
 ];
 
 const moreNav = [
@@ -17,7 +17,7 @@ const moreNav = [
   { path: '/debts', icon: CreditCard, label: 'Debts' },
   { path: '/tax', icon: Calculator, label: 'Tax' },
   { path: '/investments', icon: TrendingUp, label: 'Invest' },
-  { path: '/bills', icon: Bell, label: 'Bills' },
+  { path: '/savings', icon: Target, label: 'Savings' },
   { path: '/advisor', icon: MessageCircle, label: 'AI Advisor' },
   { path: '/settings', icon: Settings, label: 'Settings' },
 ];
