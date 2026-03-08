@@ -271,7 +271,7 @@ const SmsParser = () => {
           ))}
         </div>
         <p className="text-[10px] text-muted-foreground leading-relaxed">
-          Copy SMS messages from your phone's messaging app and paste them above. You can paste multiple messages at once. The AI will automatically detect the service and extract transaction details.
+          Copy SMS messages from your phone's messaging app and paste them above. You can paste multiple messages at once from any Tanzanian mobile money service. The AI will automatically detect the network and extract transaction details.
         </p>
       </motion.div>
     </div>
