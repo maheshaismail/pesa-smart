@@ -17,6 +17,7 @@ import Investments from "@/pages/Investments";
 import Bills from "@/pages/Bills";
 import Settings from "@/pages/Settings";
 import SmsParser from "@/pages/SmsParser";
+import Reports from "@/pages/Reports";
 import Auth from "@/pages/Auth";
 import NotFound from "./pages/NotFound";
 
