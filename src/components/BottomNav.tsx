@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
-import { LayoutDashboard, Receipt, PiggyBank, Target, MessageCircle, CreditCard, Calculator, TrendingUp, Bell, Settings, MoreHorizontal, X } from 'lucide-react';
+import { LayoutDashboard, Receipt, PiggyBank, Target, MessageCircle, CreditCard, Calculator, TrendingUp, Bell, Settings, MoreHorizontal, X, Smartphone } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const mainNav = [
@@ -12,6 +12,7 @@ const mainNav = [
 ];
 
 const moreNav = [
+  { path: '/sms-parser', icon: Smartphone, label: 'SMS Parser' },
   { path: '/debts', icon: CreditCard, label: 'Debts' },
   { path: '/tax', icon: Calculator, label: 'Tax' },
   { path: '/investments', icon: TrendingUp, label: 'Invest' },
