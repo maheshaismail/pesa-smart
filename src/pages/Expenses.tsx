@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { useI18n } from '@/lib/i18n';
-import { fetchTransactions, addTransaction, formatTZS, type Transaction } from '@/lib/api';
+import { fetchTransactions, addTransaction, updateTransaction, deleteTransaction, formatTZS, type Transaction } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, ArrowUpRight, ArrowDownRight, X, WifiOff, MessageSquare, Loader2 } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight, X, MessageSquare, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { saveOfflineTransaction, isOnline } from '@/lib/offline-db';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const categoryColors: Record<string, string> = {
   Food: 'hsl(25,85%,55%)', Transport: 'hsl(210,70%,50%)', Rent: 'hsl(280,60%,55%)',
@@ -29,19 +33,60 @@ const Expenses = () => {
   const [smsText, setSmsText] = useState('');
   const [smsMode, setSmsMode] = useState(false);
   const [parsing, setParsing] = useState(false);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const mutation = useMutation({
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['transactions'] });
+
+  const addMutation = useMutation({
     mutationFn: addTransaction,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      setNewTx({ amount: '', category: 'Food', description: '', type: 'expense' });
-      setSmsText('');
-      setSmsMode(false);
-      setShowAdd(false);
+      invalidate();
+      resetForm();
       toast.success('Transaction added!');
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const editMutation = useMutation({
+    mutationFn: ({ id, ...updates }: { id: string; amount: number; type: 'income' | 'expense'; category: string; description: string }) =>
+      updateTransaction(id, updates),
+    onSuccess: () => {
+      invalidate();
+      resetForm();
+      toast.success('Transaction updated!');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteTransaction,
+    onSuccess: () => {
+      invalidate();
+      setDeleteId(null);
+      toast.success('Transaction deleted!');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const resetForm = () => {
+    setNewTx({ amount: '', category: 'Food', description: '', type: 'expense' });
+    setSmsText('');
+    setSmsMode(false);
+    setShowAdd(false);
+    setEditingTx(null);
+  };
+
+  const handleEditClick = (tx: Transaction) => {
+    setEditingTx(tx);
+    setNewTx({
+      amount: String(tx.amount),
+      category: tx.category,
+      description: tx.description || '',
+      type: tx.type,
+    });
+    setShowAdd(true);
+  };
 
   const handleParseSms = async () => {
     if (!smsText.trim()) return;
@@ -78,8 +123,19 @@ const Expenses = () => {
     value: expenses.filter(tx => tx.category === cat).reduce((s, tx) => s + Number(tx.amount), 0),
   })).filter(c => c.value > 0);
 
-  const handleAdd = async () => {
+  const handleSubmit = async () => {
     if (!newTx.amount || !newTx.description) return;
+
+    if (editingTx) {
+      editMutation.mutate({
+        id: editingTx.id,
+        amount: parseInt(newTx.amount),
+        type: newTx.type,
+        category: newTx.category,
+        description: newTx.description,
+      });
+      return;
+    }
 
     if (!isOnline()) {
       await saveOfflineTransaction({
@@ -89,13 +145,12 @@ const Expenses = () => {
         description: newTx.description,
         transaction_date: new Date().toISOString().split('T')[0],
       });
-      setNewTx({ amount: '', category: 'Food', description: '', type: 'expense' });
-      setShowAdd(false);
+      resetForm();
       toast.success('Saved offline! Will sync when back online.', { icon: '📴' });
       return;
     }
 
-    mutation.mutate({
+    addMutation.mutate({
       amount: parseInt(newTx.amount),
       type: newTx.type,
       category: newTx.category,
@@ -103,11 +158,13 @@ const Expenses = () => {
     });
   };
 
+  const isSaving = addMutation.isPending || editMutation.isPending;
+
   return (
     <div className="space-y-5 pb-24 pt-2">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold font-display">{t('nav.expenses')}</h1>
-        <Button onClick={() => setShowAdd(true)} size="sm" className="gap-1.5 gradient-primary border-0 text-primary-foreground rounded-xl">
+        <Button onClick={() => { setEditingTx(null); setNewTx({ amount: '', category: 'Food', description: '', type: 'expense' }); setShowAdd(true); }} size="sm" className="gap-1.5 gradient-primary border-0 text-primary-foreground rounded-xl">
           <Plus size={16} /> {t('exp.add')}
         </Button>
       </div>
@@ -151,63 +208,95 @@ const Expenses = () => {
         <div className="space-y-2">
           {filtered.map((tx) => (
             <motion.div key={tx.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between rounded-xl bg-card p-3 shadow-card">
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${tx.type === 'income' ? 'bg-success/10' : 'bg-destructive/10'}`}>
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${tx.type === 'income' ? 'bg-success/10' : 'bg-destructive/10'}`}>
                   {tx.type === 'income' ? <ArrowUpRight size={16} className="text-success" /> : <ArrowDownRight size={16} className="text-destructive" />}
                 </div>
-                <div>
-                  <p className="text-sm font-medium">{tx.description || tx.category}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{tx.description || tx.category}</p>
                   <p className="text-xs text-muted-foreground">{tx.category} · {tx.transaction_date}</p>
                 </div>
               </div>
-              <p className={`text-sm font-semibold font-display ${tx.type === 'income' ? 'text-success' : 'text-destructive'}`}>
-                {tx.type === 'income' ? '+' : '-'}{formatTZS(Number(tx.amount))}
-              </p>
+              <div className="flex items-center gap-2 shrink-0">
+                <p className={`text-sm font-semibold font-display ${tx.type === 'income' ? 'text-success' : 'text-destructive'}`}>
+                  {tx.type === 'income' ? '+' : '-'}{formatTZS(Number(tx.amount))}
+                </p>
+                <button onClick={() => handleEditClick(tx)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors">
+                  <Pencil size={14} />
+                </button>
+                <button onClick={() => setDeleteId(tx.id)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </motion.div>
           ))}
         </div>
       )}
 
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent className="max-w-sm rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
+            <AlertDialogDescription>This action cannot be undone. Are you sure?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Add / Edit sheet */}
       <AnimatePresence>
         {showAdd && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-foreground/30 glass flex items-end justify-center" onClick={() => setShowAdd(false)}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 bg-foreground/30 glass flex items-end justify-center" onClick={() => resetForm()}>
             <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} className="w-full max-w-md rounded-t-2xl bg-card p-5 safe-bottom" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold font-display">{t('exp.add')}</h2>
-                <button onClick={() => setShowAdd(false)} className="text-muted-foreground"><X size={20} /></button>
+                <h2 className="text-lg font-bold font-display">{editingTx ? 'Edit Transaction' : t('exp.add')}</h2>
+                <button onClick={resetForm} className="text-muted-foreground"><X size={20} /></button>
               </div>
 
-              {/* SMS Parse toggle */}
-              <button
-                onClick={() => setSmsMode(!smsMode)}
-                className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium mb-3 transition-colors ${smsMode ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-muted text-muted-foreground'}`}
-              >
-                <MessageSquare size={14} />
-                {smsMode ? 'Parsing from SMS — paste below' : 'Paste SMS to auto-fill (optional)'}
-              </button>
+              {/* SMS Parse toggle — only in add mode */}
+              {!editingTx && (
+                <>
+                  <button
+                    onClick={() => setSmsMode(!smsMode)}
+                    className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium mb-3 transition-colors ${smsMode ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-muted text-muted-foreground'}`}
+                  >
+                    <MessageSquare size={14} />
+                    {smsMode ? 'Parsing from SMS — paste below' : 'Paste SMS to auto-fill (optional)'}
+                  </button>
 
-              <AnimatePresence>
-                {smsMode && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-3">
-                    <textarea
-                      placeholder="Paste M-Pesa, Airtel Money, or Tigo Pesa SMS here..."
-                      value={smsText}
-                      onChange={e => setSmsText(e.target.value)}
-                      rows={3}
-                      className="w-full rounded-xl border border-input bg-background px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                    />
-                    <Button
-                      onClick={handleParseSms}
-                      disabled={parsing || !smsText.trim()}
-                      size="sm"
-                      className="w-full mt-2 rounded-xl gap-1.5"
-                      variant="secondary"
-                    >
-                      {parsing ? <><Loader2 size={14} className="animate-spin" /> Parsing...</> : 'Parse SMS'}
-                    </Button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  <AnimatePresence>
+                    {smsMode && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-3">
+                        <textarea
+                          placeholder="Paste M-Pesa, Airtel Money, or Tigo Pesa SMS here..."
+                          value={smsText}
+                          onChange={e => setSmsText(e.target.value)}
+                          rows={3}
+                          className="w-full rounded-xl border border-input bg-background px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                        />
+                        <Button
+                          onClick={handleParseSms}
+                          disabled={parsing || !smsText.trim()}
+                          size="sm"
+                          className="w-full mt-2 rounded-xl gap-1.5"
+                          variant="secondary"
+                        >
+                          {parsing ? <><Loader2 size={14} className="animate-spin" /> Parsing...</> : 'Parse SMS'}
+                        </Button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </>
+              )}
 
               <div className="flex gap-2 mb-4">
                 {(['expense', 'income'] as const).map(tp => (
@@ -222,8 +311,8 @@ const Expenses = () => {
                   {(newTx.type === 'income' ? ['Salary', 'Freelance', 'Business', 'Other'] : categories).map(cat => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
                 <input type="text" placeholder={t('exp.description')} value={newTx.description} onChange={e => setNewTx(p => ({ ...p, description: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                <Button onClick={handleAdd} disabled={mutation.isPending} className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3">
-                  {mutation.isPending ? 'Saving...' : t('gen.save')}
+                <Button onClick={handleSubmit} disabled={isSaving} className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3">
+                  {isSaving ? 'Saving...' : editingTx ? 'Update' : t('gen.save')}
                 </Button>
               </div>
             </motion.div>
