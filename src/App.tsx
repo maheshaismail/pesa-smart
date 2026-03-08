@@ -37,6 +37,17 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const DocsRoute = () => {
+  const { user, loading } = useAuth();
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="w-10 h-10 rounded-xl gradient-primary animate-pulse-soft" />
+    </div>
+  );
+  if (!user || user.email !== 'ismailmahesha12@gmail.com') return <Navigate to="/" replace />;
+  return <div className="min-h-screen bg-background p-4 max-w-2xl mx-auto"><Documentation /></div>;
+};
+
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
     <QueryClientProvider client={queryClient}>
@@ -49,7 +60,7 @@ const App = () => (
               <Routes>
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/docs" element={<ProtectedRoute><div className="min-h-screen bg-background p-4 max-w-2xl mx-auto"><Documentation /></div></ProtectedRoute>} />
+                <Route path="/docs" element={<DocsRoute />} />
                 <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/expenses" element={<Expenses />} />
