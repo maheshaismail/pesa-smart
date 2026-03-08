@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      bill_reminders: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          due_day: number
+          icon: string | null
+          id: string
+          is_paid: boolean
+          name: string
+          paid_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category?: string
+          created_at?: string
+          due_day?: number
+          icon?: string | null
+          id?: string
+          is_paid?: boolean
+          name: string
+          paid_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          due_day?: number
+          icon?: string | null
+          id?: string
+          is_paid?: boolean
+          name?: string
+          paid_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       budget_categories: {
         Row: {
           category: string
@@ -64,6 +106,54 @@ export type Database = {
           created_at?: string
           id?: string
           role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      debts: {
+        Row: {
+          created_at: string
+          due_date: string | null
+          icon: string | null
+          id: string
+          interest_rate: number
+          lender: string | null
+          monthly_payment: number | null
+          name: string
+          remaining_amount: number
+          total_amount: number
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          due_date?: string | null
+          icon?: string | null
+          id?: string
+          interest_rate?: number
+          lender?: string | null
+          monthly_payment?: number | null
+          name: string
+          remaining_amount: number
+          total_amount: number
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          due_date?: string | null
+          icon?: string | null
+          id?: string
+          interest_rate?: number
+          lender?: string | null
+          monthly_payment?: number | null
+          name?: string
+          remaining_amount?: number
+          total_amount?: number
+          type?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
