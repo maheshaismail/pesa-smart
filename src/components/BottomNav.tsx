@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
-import { LayoutDashboard, Receipt, PiggyBank, Target, MessageCircle, CreditCard, Calculator, TrendingUp, Bell, Settings, MoreHorizontal, X, Smartphone } from 'lucide-react';
+import { LayoutDashboard, Receipt, PiggyBank, Target, MessageCircle, CreditCard, Calculator, TrendingUp, Bell, Settings, MoreHorizontal, X, Smartphone, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const mainNav = [
