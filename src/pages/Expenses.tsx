@@ -44,8 +44,24 @@ const Expenses = () => {
     value: expenses.filter(tx => tx.category === cat).reduce((s, tx) => s + Number(tx.amount), 0),
   })).filter(c => c.value > 0);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newTx.amount || !newTx.description) return;
+
+    if (!isOnline()) {
+      // Save offline
+      await saveOfflineTransaction({
+        amount: parseInt(newTx.amount),
+        type: newTx.type,
+        category: newTx.category,
+        description: newTx.description,
+        transaction_date: new Date().toISOString().split('T')[0],
+      });
+      setNewTx({ amount: '', category: 'Food', description: '', type: 'expense' });
+      setShowAdd(false);
+      toast.success('Saved offline! Will sync when back online.', { icon: '📴' });
+      return;
+    }
+
     mutation.mutate({
       amount: parseInt(newTx.amount),
       type: newTx.type,
