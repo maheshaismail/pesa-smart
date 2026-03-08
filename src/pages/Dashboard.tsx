@@ -4,7 +4,7 @@ import { fetchTransactions, formatTZS, getFinancialSummary, type Transaction } f
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Wallet, Heart, Lightbulb, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { useSmartNotifications } from '@/components/SmartNotifications';
 import { runAllAlertChecks, requestNotificationPermission } from '@/lib/notifications';
