@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { fetchTransactions, addTransaction, formatTZS, type Transaction } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, ArrowUpRight, ArrowDownRight, X } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight, X, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { saveOfflineTransaction, isOnline } from '@/lib/offline-db';
 
 const categoryColors: Record<string, string> = {
   Food: 'hsl(25,85%,55%)', Transport: 'hsl(210,70%,50%)', Rent: 'hsl(280,60%,55%)',
