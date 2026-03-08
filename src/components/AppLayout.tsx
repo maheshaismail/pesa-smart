@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { Globe, LogOut, WifiOff } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { NotificationBell, NotificationPanel, useSmartNotifications } from '@/components/SmartNotifications';
+import InstallPrompt from '@/components/InstallPrompt';
 
 const AppLayout = () => {
   const { lang, setLang } = useI18n();
@@ -78,6 +79,7 @@ const AppLayout = () => {
         <Outlet />
       </main>
       <BottomNav />
+      <InstallPrompt />
     </div>
   );
 };
