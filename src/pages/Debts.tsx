@@ -3,10 +3,14 @@ import { useI18n } from '@/lib/i18n';
 import { formatTZS } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, TrendingDown, Calendar } from 'lucide-react';
+import { Plus, X, TrendingDown, Calendar, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Debt {
   id: string;
@@ -37,33 +41,84 @@ const Debts = () => {
   const { data: debts = [] } = useQuery({ queryKey: ['debts'], queryFn: fetchDebts });
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ name: '', lender: '', total: '', remaining: '', rate: '0', payment: '', due: '', type: 'personal', icon: '💳' });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const addMutation = useMutation({
+  const resetForm = () => {
+    setForm({ name: '', lender: '', total: '', remaining: '', rate: '0', payment: '', due: '', type: 'personal', icon: '💳' });
+    setEditingId(null);
+    setShowAdd(false);
+  };
+
+  const saveMutation = useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase.from('debts').insert({
-        user_id: user.id,
-        name: form.name,
-        lender: form.lender || null,
-        total_amount: parseFloat(form.total),
-        remaining_amount: parseFloat(form.remaining || form.total),
-        interest_rate: parseFloat(form.rate || '0'),
-        monthly_payment: form.payment ? parseFloat(form.payment) : null,
-        due_date: form.due || null,
-        type: form.type,
-        icon: form.icon,
-      });
+      if (editingId) {
+        const { error } = await supabase.from('debts').update({
+          name: form.name,
+          lender: form.lender || null,
+          total_amount: parseFloat(form.total),
+          remaining_amount: parseFloat(form.remaining || form.total),
+          interest_rate: parseFloat(form.rate || '0'),
+          monthly_payment: form.payment ? parseFloat(form.payment) : null,
+          due_date: form.due || null,
+          type: form.type,
+          icon: form.icon,
+        }).eq('id', editingId);
+        if (error) throw error;
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+        const { error } = await supabase.from('debts').insert({
+          user_id: user.id,
+          name: form.name,
+          lender: form.lender || null,
+          total_amount: parseFloat(form.total),
+          remaining_amount: parseFloat(form.remaining || form.total),
+          interest_rate: parseFloat(form.rate || '0'),
+          monthly_payment: form.payment ? parseFloat(form.payment) : null,
+          due_date: form.due || null,
+          type: form.type,
+          icon: form.icon,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['debts'] });
+      resetForm();
+      toast.success(editingId ? 'Debt updated!' : 'Debt added!');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('debts').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['debts'] });
-      setShowAdd(false);
-      setForm({ name: '', lender: '', total: '', remaining: '', rate: '0', payment: '', due: '', type: 'personal', icon: '💳' });
-      toast.success('Debt added!');
+      setDeleteId(null);
+      toast.success('Debt deleted!');
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const handleEdit = (debt: Debt) => {
+    setEditingId(debt.id);
+    setForm({
+      name: debt.name,
+      lender: debt.lender || '',
+      total: String(debt.total_amount),
+      remaining: String(debt.remaining_amount),
+      rate: String(debt.interest_rate),
+      payment: debt.monthly_payment ? String(debt.monthly_payment) : '',
+      due: debt.due_date || '',
+      type: debt.type,
+      icon: debt.icon || '💳',
+    });
+    setShowAdd(true);
+  };
 
   const totalDebt = debts.reduce((s, d) => s + Number(d.remaining_amount), 0);
   const totalOriginal = debts.reduce((s, d) => s + Number(d.total_amount), 0);
@@ -73,7 +128,7 @@ const Debts = () => {
     <div className="space-y-5 pb-24 pt-2">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold font-display">{t('gen.debt')}</h1>
-        <Button onClick={() => setShowAdd(true)} size="sm" className="gap-1.5 gradient-primary border-0 text-primary-foreground rounded-xl">
+        <Button onClick={() => { resetForm(); setShowAdd(true); }} size="sm" className="gap-1.5 gradient-primary border-0 text-primary-foreground rounded-xl">
           <Plus size={16} /> Add Debt
         </Button>
       </div>
@@ -110,7 +165,15 @@ const Debts = () => {
                       <p className="text-[10px] text-muted-foreground capitalize">{debt.type} loan{debt.lender ? ` · ${debt.lender}` : ''}</p>
                     </div>
                   </div>
-                  <span className="text-xs font-bold font-display text-success">{pct.toFixed(0)}% paid</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold font-display text-success">{pct.toFixed(0)}% paid</span>
+                    <button onClick={() => handleEdit(debt)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors">
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={() => setDeleteId(debt.id)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
                 <div className="h-1.5 rounded-full bg-muted overflow-hidden mb-2">
                   <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8 }} className="h-full rounded-full bg-success" />
@@ -130,14 +193,14 @@ const Debts = () => {
         </div>
       )}
 
-      {/* Add Modal */}
+      {/* Add/Edit Modal */}
       <AnimatePresence>
         {showAdd && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-foreground/30 glass flex items-end justify-center" onClick={() => setShowAdd(false)}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-foreground/30 glass flex items-end justify-center" onClick={resetForm}>
             <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} className="w-full max-w-md rounded-t-2xl bg-card p-5 safe-bottom max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold font-display">Add Debt</h2>
-                <button onClick={() => setShowAdd(false)} className="text-muted-foreground"><X size={20} /></button>
+                <h2 className="text-lg font-bold font-display">{editingId ? 'Edit Debt' : 'Add Debt'}</h2>
+                <button onClick={resetForm} className="text-muted-foreground"><X size={20} /></button>
               </div>
               <div className="space-y-3">
                 <div className="flex gap-2 flex-wrap">
@@ -155,14 +218,28 @@ const Debts = () => {
                 <input type="number" placeholder="Interest rate (%)" value={form.rate} onChange={e => setForm(p => ({ ...p, rate: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 <input type="number" placeholder="Monthly payment (TZS)" value={form.payment} onChange={e => setForm(p => ({ ...p, payment: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 <input type="date" placeholder="Due date" value={form.due} onChange={e => setForm(p => ({ ...p, due: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                <Button onClick={() => { if (form.name && form.total) addMutation.mutate(); }} disabled={addMutation.isPending} className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3">
-                  {addMutation.isPending ? 'Saving...' : 'Add Debt'}
+                <Button onClick={() => { if (form.name && form.total) saveMutation.mutate(); }} disabled={saveMutation.isPending} className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3">
+                  {saveMutation.isPending ? 'Saving...' : editingId ? 'Update Debt' : 'Add Debt'}
                 </Button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Debt</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently remove this debt record. Are you sure?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteId && deleteMutation.mutate(deleteId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
