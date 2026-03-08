@@ -128,11 +128,34 @@ const Expenses = () => {
     finally { setParsing(false); }
   };
 
-  const filtered = txs.filter(tx => filter === 'all' || tx.type === filter);
+  const filtered = useMemo(() => {
+    let result = txs.filter(tx => filter === 'all' || tx.type === filter);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(tx =>
+        (tx.description || '').toLowerCase().includes(q) ||
+        tx.category.toLowerCase().includes(q) ||
+        String(tx.amount).includes(q)
+      );
+    }
+    if (dateFrom) {
+      const fromStr = format(dateFrom, 'yyyy-MM-dd');
+      result = result.filter(tx => tx.transaction_date >= fromStr);
+    }
+    if (dateTo) {
+      const toStr = format(dateTo, 'yyyy-MM-dd');
+      result = result.filter(tx => tx.transaction_date <= toStr);
+    }
+    return result;
+  }, [txs, filter, searchQuery, dateFrom, dateTo]);
+
   const expenses = txs.filter(tx => tx.type === 'expense');
   const catData = categories.map(cat => ({
     name: cat, value: expenses.filter(tx => tx.category === cat).reduce((s, tx) => s + Number(tx.amount), 0),
   })).filter(c => c.value > 0);
+
+  const hasActiveFilters = !!searchQuery || !!dateFrom || !!dateTo;
+  const clearFilters = () => { setSearchQuery(''); setDateFrom(undefined); setDateTo(undefined); };
 
   const handleSubmit = async () => {
     if (!newTx.amount || !newTx.description) return;
