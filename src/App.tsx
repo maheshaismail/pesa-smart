@@ -36,36 +36,38 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <I18nProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/expenses" element={<Expenses />} />
-                <Route path="/budget" element={<Budget />} />
-                <Route path="/savings" element={<Savings />} />
-                <Route path="/debts" element={<Debts />} />
-                <Route path="/tax" element={<Tax />} />
-                <Route path="/investments" element={<Investments />} />
-                <Route path="/bills" element={<Bills />} />
-                <Route path="/advisor" element={<Advisor />} />
-                <Route path="/sms-parser" element={<SmsParser />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/settings" element={<Settings />} />
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </I18nProvider>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <I18nProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/expenses" element={<Expenses />} />
+                  <Route path="/budget" element={<Budget />} />
+                  <Route path="/savings" element={<Savings />} />
+                  <Route path="/debts" element={<Debts />} />
+                  <Route path="/tax" element={<Tax />} />
+                  <Route path="/investments" element={<Investments />} />
+                  <Route path="/bills" element={<Bills />} />
+                  <Route path="/advisor" element={<Advisor />} />
+                  <Route path="/sms-parser" element={<SmsParser />} />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Route>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </I18nProvider>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;
