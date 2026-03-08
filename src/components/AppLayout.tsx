@@ -57,6 +57,12 @@ const AppLayout = () => {
         </div>
       </header>
 
+      {offline && (
+        <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} className="bg-warning/10 border-b border-warning/20 px-4 py-2 flex items-center gap-2 text-xs text-warning">
+          <WifiOff size={12} /> You're offline. Transactions will sync when you're back online.
+        </motion.div>
+      )}
+
       <AnimatePresence>
         {showNotifications && (
           <NotificationPanel
