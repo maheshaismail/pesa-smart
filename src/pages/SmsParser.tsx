@@ -144,7 +144,7 @@ const SmsParser = () => {
           <div>
             <h3 className="text-sm font-semibold font-display">Paste SMS Messages</h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Copy your M-Pesa, Airtel Money, or Tigo Pesa SMS messages and paste them below. Our AI will extract transaction details automatically.
+              Copy your mobile money SMS messages from any Tanzanian network and paste them below. AI will extract transaction details automatically.
             </p>
           </div>
         </div>
