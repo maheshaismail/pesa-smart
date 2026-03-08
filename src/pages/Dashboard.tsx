@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { fetchTransactions, formatTZS, getFinancialSummary, type Transaction } from '@/lib/api';
 import { motion } from 'framer-motion';
@@ -5,6 +6,7 @@ import { TrendingUp, TrendingDown, Wallet, Heart, Lightbulb, ArrowUpRight, Arrow
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
+import { useSmartNotifications } from '@/components/SmartNotifications';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
@@ -14,10 +16,18 @@ const fadeUp = {
 const Dashboard = () => {
   const { t } = useI18n();
   const { user } = useAuth();
+  const { generateInsights } = useSmartNotifications();
   const { data: transactions = [] } = useQuery({
     queryKey: ['transactions'],
     queryFn: fetchTransactions,
   });
+
+  // Auto-generate insights when transactions load
+  useEffect(() => {
+    if (transactions.length > 0) {
+      generateInsights();
+    }
+  }, [transactions.length > 0]);
 
   const summary = getFinancialSummary(transactions);
   const name = user?.user_metadata?.full_name || 'there';
