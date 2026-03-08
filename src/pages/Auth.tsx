@@ -5,6 +5,10 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { Eye, EyeOff } from 'lucide-react';
 
 const Auth = () => {
   const { signIn, signUp } = useAuth();
