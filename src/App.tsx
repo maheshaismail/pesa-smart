@@ -22,6 +22,7 @@ import Reports from "@/pages/Reports";
 import Auth from "@/pages/Auth";
 import NotFound from "./pages/NotFound";
 import ResetPassword from "./pages/ResetPassword";
+import Documentation from "./pages/Documentation";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,7 @@ const App = () => (
                   <Route path="/sms-parser" element={<SmsParser />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/docs" element={<Documentation />} />
                 </Route>
                 <Route path="*" element={<NotFound />} />
               </Routes>
