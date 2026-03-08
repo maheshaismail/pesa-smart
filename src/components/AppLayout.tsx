@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import BottomNav from '@/components/BottomNav';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
-import { Globe, LogOut } from 'lucide-react';
-import { AnimatePresence } from 'framer-motion';
+import { Globe, LogOut, WifiOff } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { NotificationBell, NotificationPanel, useSmartNotifications } from '@/components/SmartNotifications';
 
 const AppLayout = () => {
