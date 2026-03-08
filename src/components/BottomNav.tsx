@@ -12,6 +12,7 @@ const mainNav = [
 ];
 
 const moreNav = [
+  { path: '/reports', icon: BarChart3, label: 'Reports' },
   { path: '/sms-parser', icon: Smartphone, label: 'SMS Parser' },
   { path: '/debts', icon: CreditCard, label: 'Debts' },
   { path: '/tax', icon: Calculator, label: 'Tax' },
