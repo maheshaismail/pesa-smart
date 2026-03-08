@@ -19,11 +19,15 @@ interface ParsedTransaction {
   selected?: boolean;
 }
 
-const sampleSMS = `Confirmed. Ksh 50,000.00 received from JOHN DOE 0712345678 on 15/2/26 at 10:30 AM. New M-PESA balance is Ksh 75,000.00.
+const sampleSMS = `Umepokea TZS 200,000 kutoka kwa JOHN DOE 0754123456 kupitia M-Pesa tarehe 15/03/2026. Salio lako ni TZS 350,000.
 
-Confirmed. Ksh 15,000.00 sent to TANESCO LUKU 12345678 on 16/2/26 at 2:15 PM. New M-PESA balance is Ksh 60,000.00.
+Umetuma TZS 50,000 kwa TANESCO LUKU 12345678 kupitia M-Pesa tarehe 16/03/2026. Salio lako ni TZS 300,000.
 
-Umepokea TZS 200,000 kutoka kwa JANE SMITH kupitia M-Pesa tarehe 17/02/2026.`;
+You have received TZS 150,000 from JANE SMITH 0685123456 via Airtel Money on 17/03/2026. Your balance is TZS 450,000.
+
+Umepokea TZS 100,000 kutoka kwa ALI HASSAN 0625123456 kupitia HaloPesa. Salio lako ni TZS 200,000. Nambari ya muamala: HP123456789.
+
+Umepokea TZS 75,000 kutoka kwa FATMA OMAR 0715123456 kupitia Tigo Pesa tarehe 18/03/2026.`;
 
 const SmsParser = () => {
   const { t } = useI18n();
@@ -75,7 +79,7 @@ const SmsParser = () => {
         setParsed(data.transactions.map((t: ParsedTransaction) => ({ ...t, selected: true })));
         toast.success(`Found ${data.transactions.length} transaction(s)!`);
       } else {
-        setError('No transactions found in the pasted text. Make sure you paste actual M-Pesa, Airtel Money, or Tigo Pesa SMS messages.');
+        setError('No transactions found. Make sure you paste actual mobile money SMS from M-Pesa, Airtel Money, Tigo Pesa, HaloPesa, or other TZ networks.');
       }
     } catch (e: any) {
       setError(e.message);
@@ -140,7 +144,7 @@ const SmsParser = () => {
           <div>
             <h3 className="text-sm font-semibold font-display">Paste SMS Messages</h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Copy your M-Pesa, Airtel Money, or Tigo Pesa SMS messages and paste them below. Our AI will extract transaction details automatically.
+              Copy your mobile money SMS messages from any Tanzanian network and paste them below. AI will extract transaction details automatically.
             </p>
           </div>
         </div>
@@ -249,12 +253,15 @@ const SmsParser = () => {
 
       {/* Supported services info */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-xl bg-accent/30 p-4 space-y-2">
-        <h3 className="text-xs font-semibold font-display">Supported Services</h3>
+        <h3 className="text-xs font-semibold font-display">Supported Networks</h3>
         <div className="grid grid-cols-3 gap-2">
           {[
             { name: 'M-Pesa', emoji: '📱', desc: 'Vodacom' },
             { name: 'Airtel Money', emoji: '📲', desc: 'Airtel' },
-            { name: 'Tigo Pesa', emoji: '💰', desc: 'Legacy' },
+            { name: 'Tigo Pesa', emoji: '💰', desc: 'Yas/MIX' },
+            { name: 'HaloPesa', emoji: '📡', desc: 'Halotel' },
+            { name: 'EzyPesa', emoji: '🏝️', desc: 'Zantel' },
+            { name: 'TTCL Pesa', emoji: '📞', desc: 'TTCL' },
           ].map(s => (
             <div key={s.name} className="text-center p-2 rounded-lg bg-card/50">
               <span className="text-lg">{s.emoji}</span>
@@ -264,7 +271,7 @@ const SmsParser = () => {
           ))}
         </div>
         <p className="text-[10px] text-muted-foreground leading-relaxed">
-          Copy SMS messages from your phone's messaging app and paste them above. You can paste multiple messages at once. The AI will automatically detect the service and extract transaction details.
+          Copy SMS messages from your phone's messaging app and paste them above. You can paste multiple messages at once from any Tanzanian mobile money service. The AI will automatically detect the network and extract transaction details.
         </p>
       </motion.div>
     </div>
