@@ -11,6 +11,11 @@ import Expenses from "@/pages/Expenses";
 import Budget from "@/pages/Budget";
 import Savings from "@/pages/Savings";
 import Advisor from "@/pages/Advisor";
+import Debts from "@/pages/Debts";
+import Tax from "@/pages/Tax";
+import Investments from "@/pages/Investments";
+import Bills from "@/pages/Bills";
+import Settings from "@/pages/Settings";
 import Auth from "@/pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -42,7 +47,12 @@ const App = () => (
                 <Route path="/expenses" element={<Expenses />} />
                 <Route path="/budget" element={<Budget />} />
                 <Route path="/savings" element={<Savings />} />
+                <Route path="/debts" element={<Debts />} />
+                <Route path="/tax" element={<Tax />} />
+                <Route path="/investments" element={<Investments />} />
+                <Route path="/bills" element={<Bills />} />
                 <Route path="/advisor" element={<Advisor />} />
+                <Route path="/settings" element={<Settings />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
