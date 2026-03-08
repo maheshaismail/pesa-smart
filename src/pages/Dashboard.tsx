@@ -16,10 +16,18 @@ const fadeUp = {
 const Dashboard = () => {
   const { t } = useI18n();
   const { user } = useAuth();
+  const { generateInsights } = useSmartNotifications();
   const { data: transactions = [] } = useQuery({
     queryKey: ['transactions'],
     queryFn: fetchTransactions,
   });
+
+  // Auto-generate insights when transactions load
+  useEffect(() => {
+    if (transactions.length > 0) {
+      generateInsights();
+    }
+  }, [transactions.length > 0]);
 
   const summary = getFinancialSummary(transactions);
   const name = user?.user_metadata?.full_name || 'there';
