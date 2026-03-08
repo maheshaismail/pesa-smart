@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { saveOfflineTransaction, isOnline } from '@/lib/offline-db';
 import { supabase } from '@/integrations/supabase/client';
+import SwipeToDelete from '@/components/SwipeToDelete';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
