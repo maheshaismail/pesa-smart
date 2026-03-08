@@ -95,7 +95,7 @@ const Auth = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          {!isLogin && (
+          {!isLogin && !forgotMode && (
             <input
               type="text"
               placeholder="Full Name"
@@ -113,27 +113,62 @@ const Auth = () => {
             className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             required
           />
-          <div className="relative">
-            <input
-              type={showPw ? 'text' : 'password'}
-              placeholder="Password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-input bg-card px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              required
-              minLength={6}
-            />
-            <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-              {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+          {!forgotMode && (
+            <div className="relative">
+              <input
+                type={showPw ? 'text' : 'password'}
+                placeholder="Password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-input bg-card px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                required
+                minLength={6}
+              />
+              <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          )}
+          {isLogin && !forgotMode && (
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={() => { setForgotMode(true); setResetSent(false); }}
+                className="text-xs text-primary font-medium hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
+          {forgotMode && resetSent ? (
+            <div className="text-center py-2">
+              <p className="text-sm text-muted-foreground mb-3">We sent a reset link to <span className="font-medium text-foreground">{email}</span></p>
+              <button
+                type="button"
+                onClick={() => { setForgotMode(false); setResetSent(false); }}
+                className="text-xs text-primary font-medium hover:underline"
+              >
+                Back to Login
+              </button>
+            </div>
+          ) : (
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3 text-sm font-semibold"
+            >
+              {loading ? 'Please wait...' : forgotMode ? 'Send Reset Link' : isLogin ? 'Log In' : 'Create Account'}
+            </Button>
+          )}
+          {forgotMode && !resetSent && (
+            <button
+              type="button"
+              onClick={() => setForgotMode(false)}
+              className="w-full text-xs text-muted-foreground hover:text-foreground text-center"
+            >
+              Back to Login
             </button>
-          </div>
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3 text-sm font-semibold"
-          >
-            {loading ? 'Please wait...' : isLogin ? 'Log In' : 'Create Account'}
-          </Button>
+          )}
         </form>
       </motion.div>
     </div>
