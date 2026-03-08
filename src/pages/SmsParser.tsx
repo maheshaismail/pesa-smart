@@ -253,12 +253,15 @@ const SmsParser = () => {
 
       {/* Supported services info */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-xl bg-accent/30 p-4 space-y-2">
-        <h3 className="text-xs font-semibold font-display">Supported Services</h3>
+        <h3 className="text-xs font-semibold font-display">Supported Networks</h3>
         <div className="grid grid-cols-3 gap-2">
           {[
             { name: 'M-Pesa', emoji: '📱', desc: 'Vodacom' },
             { name: 'Airtel Money', emoji: '📲', desc: 'Airtel' },
-            { name: 'Tigo Pesa', emoji: '💰', desc: 'Legacy' },
+            { name: 'Tigo Pesa', emoji: '💰', desc: 'Yas/MIX' },
+            { name: 'HaloPesa', emoji: '📡', desc: 'Halotel' },
+            { name: 'EzyPesa', emoji: '🏝️', desc: 'Zantel' },
+            { name: 'TTCL Pesa', emoji: '📞', desc: 'TTCL' },
           ].map(s => (
             <div key={s.name} className="text-center p-2 rounded-lg bg-card/50">
               <span className="text-lg">{s.emoji}</span>
