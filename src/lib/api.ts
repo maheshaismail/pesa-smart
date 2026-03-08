@@ -66,6 +66,21 @@ export async function addTransaction(tx: {
   return data as Transaction;
 }
 
+export async function updateTransaction(id: string, updates: {
+  amount?: number;
+  type?: 'income' | 'expense';
+  category?: string;
+  description?: string;
+}) {
+  const { error } = await supabase.from('transactions').update(updates).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteTransaction(id: string) {
+  const { error } = await supabase.from('transactions').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export async function fetchBudgetCategories() {
   const { data, error } = await supabase
     .from('budget_categories')
