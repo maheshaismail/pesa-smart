@@ -9,6 +9,11 @@ const translations: Record<string, Record<Lang, string>> = {
   'nav.budget': { en: 'Budget', sw: 'Bajeti' },
   'nav.savings': { en: 'Savings', sw: 'Akiba' },
   'nav.advisor': { en: 'AI Advisor', sw: 'Mshauri AI' },
+  'nav.debts': { en: 'Debts', sw: 'Madeni' },
+  'nav.tax': { en: 'Tax', sw: 'Kodi' },
+  'nav.investments': { en: 'Investments', sw: 'Uwekezaji' },
+  'nav.bills': { en: 'Bills', sw: 'Bili' },
+  'nav.settings': { en: 'Settings', sw: 'Mipangilio' },
   // Dashboard
   'dash.greeting': { en: 'Hello', sw: 'Habari' },
   'dash.balance': { en: 'Total Balance', sw: 'Salio Jumla' },
