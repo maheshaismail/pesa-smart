@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { fetchTransactions, addTransaction, updateTransaction, deleteTransaction, bulkDeleteTransactions, formatTZS, type Transaction } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, ArrowUpRight, ArrowDownRight, X, MessageSquare, Loader2, Pencil, Trash2, CheckSquare, Square, XCircle } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight, X, MessageSquare, Loader2, Pencil, Trash2, CheckSquare, Square, XCircle, Search, CalendarIcon, Filter } from 'lucide-react';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -14,6 +15,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 const categoryColors: Record<string, string> = {
   Food: 'hsl(25,85%,55%)', Transport: 'hsl(210,70%,50%)', Rent: 'hsl(280,60%,55%)',
@@ -39,6 +43,10 @@ const Expenses = () => {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
+  const [showFilters, setShowFilters] = useState(false);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['transactions'] });
 
@@ -120,11 +128,34 @@ const Expenses = () => {
     finally { setParsing(false); }
   };
 
-  const filtered = txs.filter(tx => filter === 'all' || tx.type === filter);
+  const filtered = useMemo(() => {
+    let result = txs.filter(tx => filter === 'all' || tx.type === filter);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(tx =>
+        (tx.description || '').toLowerCase().includes(q) ||
+        tx.category.toLowerCase().includes(q) ||
+        String(tx.amount).includes(q)
+      );
+    }
+    if (dateFrom) {
+      const fromStr = format(dateFrom, 'yyyy-MM-dd');
+      result = result.filter(tx => tx.transaction_date >= fromStr);
+    }
+    if (dateTo) {
+      const toStr = format(dateTo, 'yyyy-MM-dd');
+      result = result.filter(tx => tx.transaction_date <= toStr);
+    }
+    return result;
+  }, [txs, filter, searchQuery, dateFrom, dateTo]);
+
   const expenses = txs.filter(tx => tx.type === 'expense');
   const catData = categories.map(cat => ({
     name: cat, value: expenses.filter(tx => tx.category === cat).reduce((s, tx) => s + Number(tx.amount), 0),
   })).filter(c => c.value > 0);
+
+  const hasActiveFilters = !!searchQuery || !!dateFrom || !!dateTo;
+  const clearFilters = () => { setSearchQuery(''); setDateFrom(undefined); setDateTo(undefined); };
 
   const handleSubmit = async () => {
     if (!newTx.amount || !newTx.description) return;
@@ -214,13 +245,78 @@ const Expenses = () => {
         </motion.div>
       )}
 
-      <div className="flex gap-2">
-        {(['all', 'income', 'expense'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-            {f === 'all' ? 'All' : f === 'income' ? t('dash.income') : t('dash.expenses')}
-          </button>
-        ))}
+      <div className="flex items-center gap-2">
+        <div className="flex gap-2 flex-1">
+          {(['all', 'income', 'expense'] as const).map(f => (
+            <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+              {f === 'all' ? 'All' : f === 'income' ? t('dash.income') : t('dash.expenses')}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className={`p-2 rounded-lg transition-colors relative ${showFilters || hasActiveFilters ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}
+        >
+          <Filter size={14} />
+          {hasActiveFilters && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary" />}
+        </button>
       </div>
+
+      {/* Search & Date Filters */}
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+            <div className="space-y-2.5 rounded-xl bg-card p-3 shadow-card">
+              {/* Search */}
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search transactions..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              {/* Date range */}
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("flex-1 justify-start text-left text-xs rounded-lg h-10", !dateFrom && "text-muted-foreground")}>
+                      <CalendarIcon size={12} className="mr-1.5" />
+                      {dateFrom ? format(dateFrom, 'MMM dd, yyyy') : 'From date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("flex-1 justify-start text-left text-xs rounded-lg h-10", !dateTo && "text-muted-foreground")}>
+                      <CalendarIcon size={12} className="mr-1.5" />
+                      {dateTo ? format(dateTo, 'MMM dd, yyyy') : 'To date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {hasActiveFilters && (
+                <button onClick={clearFilters} className="text-xs text-primary font-medium flex items-center gap-1">
+                  <X size={12} /> Clear filters
+                </button>
+              )}
+
+              <p className="text-xs text-muted-foreground">{filtered.length} transaction{filtered.length !== 1 ? 's' : ''} found</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">No transactions yet</p>
