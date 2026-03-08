@@ -20,6 +20,7 @@ const Dashboard = () => {
   const { t } = useI18n();
   const { user } = useAuth();
   const { generateInsights } = useSmartNotifications();
+  const queryClient = useQueryClient();
   const { data: transactions = [] } = useQuery({
     queryKey: ['transactions'],
     queryFn: fetchTransactions,
