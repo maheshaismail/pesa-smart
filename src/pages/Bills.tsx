@@ -3,10 +3,14 @@ import { useI18n } from '@/lib/i18n';
 import { formatTZS } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, Check, Bell } from 'lucide-react';
+import { Plus, X, Check, Bell, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface BillReminder {
   id: string;
@@ -35,26 +39,57 @@ const Bills = () => {
   const { data: bills = [] } = useQuery({ queryKey: ['bills'], queryFn: fetchBills });
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ name: '', amount: '', due_day: '1', category: 'Electricity', icon: '💡' });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const addMutation = useMutation({
+  const resetForm = () => {
+    setForm({ name: '', amount: '', due_day: '1', category: 'Electricity', icon: '💡' });
+    setEditingId(null);
+    setShowAdd(false);
+  };
+
+  const saveMutation = useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase.from('bill_reminders').insert({
-        user_id: user.id,
-        name: form.name,
-        amount: parseFloat(form.amount),
-        due_day: parseInt(form.due_day),
-        category: form.category,
-        icon: form.icon,
-      });
+      if (editingId) {
+        const { error } = await supabase.from('bill_reminders').update({
+          name: form.name,
+          amount: parseFloat(form.amount),
+          due_day: parseInt(form.due_day),
+          category: form.category,
+          icon: form.icon,
+        }).eq('id', editingId);
+        if (error) throw error;
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+        const { error } = await supabase.from('bill_reminders').insert({
+          user_id: user.id,
+          name: form.name,
+          amount: parseFloat(form.amount),
+          due_day: parseInt(form.due_day),
+          category: form.category,
+          icon: form.icon,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['bills'] });
+      resetForm();
+      toast.success(editingId ? 'Bill updated!' : 'Bill reminder added!');
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('bill_reminders').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['bills'] });
-      setShowAdd(false);
-      setForm({ name: '', amount: '', due_day: '1', category: 'Electricity', icon: '💡' });
-      toast.success('Bill reminder added!');
+      setDeleteId(null);
+      toast.success('Bill deleted!');
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -70,6 +105,12 @@ const Bills = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['bills'] }),
   });
 
+  const handleEdit = (bill: BillReminder) => {
+    setEditingId(bill.id);
+    setForm({ name: bill.name, amount: String(bill.amount), due_day: String(bill.due_day), category: bill.category, icon: bill.icon || '📄' });
+    setShowAdd(true);
+  };
+
   const today = new Date().getDate();
   const totalMonthly = bills.reduce((s, b) => s + Number(b.amount), 0);
   const paidCount = bills.filter(b => b.is_paid).length;
@@ -80,7 +121,7 @@ const Bills = () => {
     <div className="space-y-5 pb-24 pt-2">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold font-display">Bill Reminders</h1>
-        <Button onClick={() => setShowAdd(true)} size="sm" className="gap-1.5 gradient-primary border-0 text-primary-foreground rounded-xl">
+        <Button onClick={() => { resetForm(); setShowAdd(true); }} size="sm" className="gap-1.5 gradient-primary border-0 text-primary-foreground rounded-xl">
           <Plus size={16} /> Add Bill
         </Button>
       </div>
@@ -109,7 +150,7 @@ const Bills = () => {
           <h3 className="text-xs font-semibold text-destructive mb-2 flex items-center gap-1"><Bell size={12} /> Overdue</h3>
           <div className="space-y-2">
             {overdue.map(bill => (
-              <BillCard key={bill.id} bill={bill} onToggle={() => togglePaid.mutate(bill)} isOverdue />
+              <BillCard key={bill.id} bill={bill} onToggle={() => togglePaid.mutate(bill)} onEdit={() => handleEdit(bill)} onDelete={() => setDeleteId(bill.id)} isOverdue />
             ))}
           </div>
         </div>
@@ -121,7 +162,7 @@ const Bills = () => {
           <h3 className="text-xs font-semibold text-muted-foreground mb-2">Upcoming</h3>
           <div className="space-y-2">
             {upcoming.map(bill => (
-              <BillCard key={bill.id} bill={bill} onToggle={() => togglePaid.mutate(bill)} />
+              <BillCard key={bill.id} bill={bill} onToggle={() => togglePaid.mutate(bill)} onEdit={() => handleEdit(bill)} onDelete={() => setDeleteId(bill.id)} />
             ))}
           </div>
         </div>
@@ -133,7 +174,7 @@ const Bills = () => {
           <h3 className="text-xs font-semibold text-success mb-2">Paid This Month</h3>
           <div className="space-y-2">
             {bills.filter(b => b.is_paid).map(bill => (
-              <BillCard key={bill.id} bill={bill} onToggle={() => togglePaid.mutate(bill)} />
+              <BillCard key={bill.id} bill={bill} onToggle={() => togglePaid.mutate(bill)} onEdit={() => handleEdit(bill)} onDelete={() => setDeleteId(bill.id)} />
             ))}
           </div>
         </div>
@@ -141,14 +182,14 @@ const Bills = () => {
 
       {bills.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No bill reminders yet. Add your recurring bills to stay on track!</p>}
 
-      {/* Add Modal */}
+      {/* Add/Edit Modal */}
       <AnimatePresence>
         {showAdd && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-foreground/30 glass flex items-end justify-center" onClick={() => setShowAdd(false)}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-foreground/30 glass flex items-end justify-center" onClick={resetForm}>
             <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} className="w-full max-w-md rounded-t-2xl bg-card p-5 safe-bottom max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold font-display">Add Bill Reminder</h2>
-                <button onClick={() => setShowAdd(false)} className="text-muted-foreground"><X size={20} /></button>
+                <h2 className="text-lg font-bold font-display">{editingId ? 'Edit Bill' : 'Add Bill Reminder'}</h2>
+                <button onClick={resetForm} className="text-muted-foreground"><X size={20} /></button>
               </div>
               <div className="space-y-3">
                 <div className="flex gap-2 flex-wrap">
@@ -165,19 +206,33 @@ const Bills = () => {
                   <label className="text-xs text-muted-foreground mb-1 block">Due day of month</label>
                   <input type="number" min="1" max="31" value={form.due_day} onChange={e => setForm(p => ({ ...p, due_day: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
-                <Button onClick={() => { if (form.name && form.amount) addMutation.mutate(); }} disabled={addMutation.isPending} className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3">
-                  {addMutation.isPending ? 'Saving...' : 'Add Bill'}
+                <Button onClick={() => { if (form.name && form.amount) saveMutation.mutate(); }} disabled={saveMutation.isPending} className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3">
+                  {saveMutation.isPending ? 'Saving...' : editingId ? 'Update Bill' : 'Add Bill'}
                 </Button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Bill Reminder</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently remove this bill reminder. Are you sure?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteId && deleteMutation.mutate(deleteId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
 
-function BillCard({ bill, onToggle, isOverdue }: { bill: BillReminder; onToggle: () => void; isOverdue?: boolean }) {
+function BillCard({ bill, onToggle, onEdit, onDelete, isOverdue }: { bill: BillReminder; onToggle: () => void; onEdit: () => void; onDelete: () => void; isOverdue?: boolean }) {
   return (
     <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`flex items-center justify-between rounded-xl bg-card p-3 shadow-card ${isOverdue ? 'ring-1 ring-destructive/30' : ''}`}>
       <div className="flex items-center gap-3">
@@ -190,7 +245,15 @@ function BillCard({ bill, onToggle, isOverdue }: { bill: BillReminder; onToggle:
           <p className="text-[10px] text-muted-foreground">{bill.category} · Due day {bill.due_day}</p>
         </div>
       </div>
-      <p className="text-sm font-semibold font-display">{formatTZS(Number(bill.amount))}</p>
+      <div className="flex items-center gap-1.5">
+        <p className="text-sm font-semibold font-display">{formatTZS(Number(bill.amount))}</p>
+        <button onClick={onEdit} className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors">
+          <Pencil size={14} />
+        </button>
+        <button onClick={onDelete} className="p-1.5 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+          <Trash2 size={14} />
+        </button>
+      </div>
     </motion.div>
   );
 }
