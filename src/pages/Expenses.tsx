@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { saveOfflineTransaction, isOnline } from '@/lib/offline-db';
 import { supabase } from '@/integrations/supabase/client';
+import SwipeToDelete from '@/components/SwipeToDelete';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -207,28 +208,30 @@ const Expenses = () => {
       ) : (
         <div className="space-y-2">
           {filtered.map((tx) => (
-            <motion.div key={tx.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between rounded-xl bg-card p-3 shadow-card">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${tx.type === 'income' ? 'bg-success/10' : 'bg-destructive/10'}`}>
-                  {tx.type === 'income' ? <ArrowUpRight size={16} className="text-success" /> : <ArrowDownRight size={16} className="text-destructive" />}
+            <SwipeToDelete key={tx.id} onDelete={() => setDeleteId(tx.id)}>
+              <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between rounded-xl bg-card p-3 shadow-card">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${tx.type === 'income' ? 'bg-success/10' : 'bg-destructive/10'}`}>
+                    {tx.type === 'income' ? <ArrowUpRight size={16} className="text-success" /> : <ArrowDownRight size={16} className="text-destructive" />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{tx.description || tx.category}</p>
+                    <p className="text-xs text-muted-foreground">{tx.category} · {tx.transaction_date}</p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{tx.description || tx.category}</p>
-                  <p className="text-xs text-muted-foreground">{tx.category} · {tx.transaction_date}</p>
+                <div className="flex items-center gap-2 shrink-0">
+                  <p className={`text-sm font-semibold font-display ${tx.type === 'income' ? 'text-success' : 'text-destructive'}`}>
+                    {tx.type === 'income' ? '+' : '-'}{formatTZS(Number(tx.amount))}
+                  </p>
+                  <button onClick={() => handleEditClick(tx)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors">
+                    <Pencil size={14} />
+                  </button>
+                  <button onClick={() => setDeleteId(tx.id)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                    <Trash2 size={14} />
+                  </button>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <p className={`text-sm font-semibold font-display ${tx.type === 'income' ? 'text-success' : 'text-destructive'}`}>
-                  {tx.type === 'income' ? '+' : '-'}{formatTZS(Number(tx.amount))}
-                </p>
-                <button onClick={() => handleEditClick(tx)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors">
-                  <Pencil size={14} />
-                </button>
-                <button onClick={() => setDeleteId(tx.id)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </motion.div>
+              </motion.div>
+            </SwipeToDelete>
           ))}
         </div>
       )}
