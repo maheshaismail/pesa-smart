@@ -79,7 +79,7 @@ const SmsParser = () => {
         setParsed(data.transactions.map((t: ParsedTransaction) => ({ ...t, selected: true })));
         toast.success(`Found ${data.transactions.length} transaction(s)!`);
       } else {
-        setError('No transactions found in the pasted text. Make sure you paste actual M-Pesa, Airtel Money, or Tigo Pesa SMS messages.');
+        setError('No transactions found. Make sure you paste actual mobile money SMS from M-Pesa, Airtel Money, Tigo Pesa, HaloPesa, or other TZ networks.');
       }
     } catch (e: any) {
       setError(e.message);
