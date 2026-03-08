@@ -26,6 +26,20 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
 
+    if (forgotMode) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      setLoading(false);
+      if (error) {
+        toast.error(error.message);
+      } else {
+        setResetSent(true);
+        toast.success('Password reset email sent! Check your inbox.');
+      }
+      return;
+    }
+
     if (isLogin) {
       const { error } = await signIn(email, password);
       if (error) {
