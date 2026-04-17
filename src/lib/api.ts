@@ -12,12 +12,15 @@ export interface Transaction {
   created_at: string;
 }
 
+export type BudgetPeriod = 'daily' | 'weekly' | 'monthly';
+
 export interface BudgetCategory {
   id: string;
   user_id: string;
   category: string;
   monthly_limit: number;
   icon: string | null;
+  period: BudgetPeriod;
 }
 
 export interface SavingsGoal {
@@ -95,13 +98,32 @@ export async function fetchBudgetCategories() {
   return (data || []) as BudgetCategory[];
 }
 
-export async function upsertBudgetCategory(cat: { category: string; monthly_limit: number; icon: string }) {
+export async function upsertBudgetCategory(cat: { id?: string; category: string; monthly_limit: number; icon: string; period?: BudgetPeriod }) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
-  
+
+  const period = cat.period || 'monthly';
+
+  if (cat.id) {
+    const { error } = await supabase
+      .from('budget_categories')
+      .update({ category: cat.category, monthly_limit: cat.monthly_limit, icon: cat.icon, period })
+      .eq('id', cat.id);
+    if (error) throw error;
+    return;
+  }
+
   const { error } = await supabase
     .from('budget_categories')
-    .upsert({ user_id: user.id, category: cat.category, monthly_limit: cat.monthly_limit, icon: cat.icon }, { onConflict: 'user_id,category' });
+    .upsert(
+      { user_id: user.id, category: cat.category, monthly_limit: cat.monthly_limit, icon: cat.icon, period },
+      { onConflict: 'user_id,category,period' }
+    );
+  if (error) throw error;
+}
+
+export async function deleteBudgetCategory(id: string) {
+  const { error } = await supabase.from('budget_categories').delete().eq('id', id);
   if (error) throw error;
 }
 

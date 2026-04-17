@@ -1,6 +1,5 @@
 import { useI18n } from '@/lib/i18n';
-import { fetchBudgetCategories, fetchTransactions, formatTZS, upsertBudgetCategory } from '@/lib/api';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchBudgetCategories, fetchTransactions, formatTZS, upsertBudgetCategory, deleteBudgetCategory, BudgetPeriod } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, X, Pencil, Trash2 } from 'lucide-react';
@@ -12,14 +11,16 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-const defaultBudgets = [
-  { category: 'Food', icon: '🍽️', limit: 300000 },
-  { category: 'Transport', icon: '🚌', limit: 150000 },
-  { category: 'Rent', icon: '🏠', limit: 400000 },
-  { category: 'Utilities', icon: '💡', limit: 100000 },
-  { category: 'Entertainment', icon: '🎬', limit: 100000 },
-  { category: 'Education', icon: '📖', limit: 250000 },
+const defaultBudgets: { category: string; icon: string; limit: number; period: BudgetPeriod }[] = [
+  { category: 'Food', icon: '🍽️', limit: 300000, period: 'monthly' },
+  { category: 'Transport', icon: '🚌', limit: 150000, period: 'monthly' },
+  { category: 'Rent', icon: '🏠', limit: 400000, period: 'monthly' },
+  { category: 'Utilities', icon: '💡', limit: 100000, period: 'monthly' },
+  { category: 'Entertainment', icon: '🎬', limit: 100000, period: 'monthly' },
+  { category: 'Education', icon: '📖', limit: 250000, period: 'monthly' },
 ];
+
+const periodLabels: Record<BudgetPeriod, string> = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
 
 const Budget = () => {
   const { t } = useI18n();
@@ -27,16 +28,17 @@ const Budget = () => {
   const { data: budgets = [] } = useQuery({ queryKey: ['budgets'], queryFn: fetchBudgetCategories });
   const { data: transactions = [] } = useQuery({ queryKey: ['transactions'], queryFn: fetchTransactions });
   const [showAdd, setShowAdd] = useState(false);
-  const [newBud, setNewBud] = useState({ category: '', limit: '', icon: '📦' });
+  const [newBud, setNewBud] = useState<{ category: string; limit: string; icon: string; period: BudgetPeriod }>({ category: '', limit: '', icon: '📦', period: 'monthly' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<BudgetPeriod>('monthly');
 
   const mutation = useMutation({
     mutationFn: upsertBudgetCategory,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       setShowAdd(false);
-      setNewBud({ category: '', limit: '', icon: '📦' });
+      setNewBud({ category: '', limit: '', icon: '📦', period: activeTab });
       setEditingId(null);
       toast.success(editingId ? 'Budget updated!' : 'Budget saved!');
     },
@@ -44,10 +46,7 @@ const Budget = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('budget_categories').delete().eq('id', id);
-      if (error) throw error;
-    },
+    mutationFn: deleteBudgetCategory,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       setDeleteId(null);
@@ -58,55 +57,90 @@ const Budget = () => {
 
   const handleEdit = (cat: typeof budgets[0]) => {
     setEditingId(cat.id);
-    setNewBud({ category: cat.category, limit: String(cat.monthly_limit), icon: cat.icon || '📦' });
+    setNewBud({ category: cat.category, limit: String(cat.monthly_limit), icon: cat.icon || '📦', period: cat.period || 'monthly' });
     setShowAdd(true);
   };
 
   const setupDefaults = async () => {
     for (const b of defaultBudgets) {
-      await upsertBudgetCategory({ category: b.category, monthly_limit: b.limit, icon: b.icon });
+      await upsertBudgetCategory({ category: b.category, monthly_limit: b.limit, icon: b.icon, period: b.period });
     }
     queryClient.invalidateQueries({ queryKey: ['budgets'] });
     toast.success('Default budgets created!');
   };
 
-  const now = new Date();
-  const thisMonthExpenses = transactions.filter(tx => {
-    const d = new Date(tx.transaction_date);
-    return tx.type === 'expense' && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  });
+  // Calculate period start/end
+  const getPeriodRange = (period: BudgetPeriod) => {
+    const now = new Date();
+    if (period === 'daily') {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      return { start, end: now };
+    }
+    if (period === 'weekly') {
+      const day = now.getDay();
+      const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Monday
+      const start = new Date(now.getFullYear(), now.getMonth(), diff);
+      return { start, end: now };
+    }
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { start, end: now };
+  };
 
-  const budgetWithSpent = budgets.map(b => ({
-    ...b,
-    spent: thisMonthExpenses.filter(tx => tx.category === b.category).reduce((s, tx) => s + Number(tx.amount), 0),
-  }));
+  const filteredBudgets = budgets.filter(b => (b.period || 'monthly') === activeTab);
+
+  const budgetWithSpent = filteredBudgets.map(b => {
+    const range = getPeriodRange(b.period || 'monthly');
+    const spent = transactions
+      .filter(tx => {
+        const d = new Date(tx.transaction_date);
+        return tx.type === 'expense' && tx.category === b.category && d >= range.start && d <= range.end;
+      })
+      .reduce((s, tx) => s + Number(tx.amount), 0);
+    return { ...b, spent };
+  });
 
   const totalLimit = budgetWithSpent.reduce((s, c) => s + Number(c.monthly_limit), 0);
   const totalSpent = budgetWithSpent.reduce((s, c) => s + c.spent, 0);
 
   const icons = ['📦', '🍽️', '🚌', '🏠', '💡', '🎬', '📖', '💊'];
+  const periods: BudgetPeriod[] = ['daily', 'weekly', 'monthly'];
 
   return (
     <div className="space-y-5 pb-24 pt-2">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold font-display">{t('bud.monthly')}</h1>
-        <Button onClick={() => { setEditingId(null); setNewBud({ category: '', limit: '', icon: '📦' }); setShowAdd(true); }} size="sm" className="gap-1.5 gradient-primary border-0 text-primary-foreground rounded-xl">
+        <Button onClick={() => { setEditingId(null); setNewBud({ category: '', limit: '', icon: '📦', period: activeTab }); setShowAdd(true); }} size="sm" className="gap-1.5 gradient-primary border-0 text-primary-foreground rounded-xl">
           <Plus size={16} /> Add
         </Button>
       </div>
 
-      {budgets.length === 0 ? (
+      {/* Period tabs */}
+      <div className="flex gap-1 p-1 rounded-xl bg-muted">
+        {periods.map(p => (
+          <button
+            key={p}
+            onClick={() => setActiveTab(p)}
+            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${activeTab === p ? 'bg-card shadow-card text-foreground' : 'text-muted-foreground'}`}
+          >
+            {periodLabels[p]}
+          </button>
+        ))}
+      </div>
+
+      {filteredBudgets.length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-sm text-muted-foreground mb-4">No budget categories set up yet</p>
-          <Button onClick={setupDefaults} className="gradient-primary border-0 text-primary-foreground rounded-xl">
-            Set Up Default Budgets
-          </Button>
+          <p className="text-sm text-muted-foreground mb-4">No {periodLabels[activeTab].toLowerCase()} budgets set up yet</p>
+          {budgets.length === 0 && (
+            <Button onClick={setupDefaults} className="gradient-primary border-0 text-primary-foreground rounded-xl">
+              Set Up Default Budgets
+            </Button>
+          )}
         </div>
       ) : (
         <>
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl gradient-primary p-4 shadow-elevated">
             <div className="flex justify-between text-primary-foreground mb-2">
-              <span className="text-sm">{t('bud.spent')}</span>
+              <span className="text-sm">{t('bud.spent')} ({periodLabels[activeTab]})</span>
               <span className="text-sm">{t('bud.limit')}</span>
             </div>
             <div className="flex justify-between text-primary-foreground mb-3">
@@ -128,7 +162,10 @@ const Budget = () => {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <span className="text-lg">{cat.icon}</span>
-                      <span className="text-sm font-medium">{cat.category}</span>
+                      <div>
+                        <span className="text-sm font-medium block">{cat.category}</span>
+                        <span className="text-[10px] text-muted-foreground capitalize">{cat.period}</span>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
@@ -169,9 +206,34 @@ const Budget = () => {
                     <button key={ic} onClick={() => setNewBud(p => ({ ...p, icon: ic }))} className={`w-10 h-10 rounded-xl text-xl flex items-center justify-center ${newBud.icon === ic ? 'bg-primary/10 ring-2 ring-primary' : 'bg-muted'}`}>{ic}</button>
                   ))}
                 </div>
-                <input type="text" placeholder="Category name" value={newBud.category} onChange={e => setNewBud(p => ({ ...p, category: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" disabled={!!editingId} />
-                <input type="number" placeholder="Monthly limit (TZS)" value={newBud.limit} onChange={e => setNewBud(p => ({ ...p, limit: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                <Button onClick={() => { if (newBud.category && newBud.limit) mutation.mutate({ category: newBud.category, monthly_limit: parseInt(newBud.limit), icon: newBud.icon }); }} disabled={mutation.isPending} className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3">
+                <input type="text" placeholder="Category name" value={newBud.category} onChange={e => setNewBud(p => ({ ...p, category: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                <input type="number" placeholder="Limit (TZS)" value={newBud.limit} onChange={e => setNewBud(p => ({ ...p, limit: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                <div className="flex gap-2">
+                  {periods.map(p => (
+                    <button
+                      key={p}
+                      onClick={() => setNewBud(prev => ({ ...prev, period: p }))}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-medium transition-all ${newBud.period === p ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
+                    >
+                      {periodLabels[p]}
+                    </button>
+                  ))}
+                </div>
+                <Button
+                  onClick={() => {
+                    if (newBud.category && newBud.limit) {
+                      mutation.mutate({
+                        id: editingId || undefined,
+                        category: newBud.category,
+                        monthly_limit: parseInt(newBud.limit),
+                        icon: newBud.icon,
+                        period: newBud.period,
+                      });
+                    }
+                  }}
+                  disabled={mutation.isPending}
+                  className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3"
+                >
                   {mutation.isPending ? 'Saving...' : editingId ? 'Update' : 'Save'}
                 </Button>
               </div>
