@@ -13,7 +13,7 @@ const AppLayout = () => {
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
-  const { notifications, unreadCount, loading, generateInsights, markAllRead } = useSmartNotifications();
+  const { notifications, unreadCount, loading, generateInsights, markAllRead, deleteNotification, clearAll } = useSmartNotifications();
   const [offline, setOffline] = useState(!navigator.onLine);
 
   useEffect(() => {
@@ -71,6 +71,8 @@ const AppLayout = () => {
             loading={loading}
             onClose={() => setShowNotifications(false)}
             onRefresh={generateInsights}
+            onDelete={deleteNotification}
+            onClearAll={clearAll}
           />
         )}
       </AnimatePresence>
