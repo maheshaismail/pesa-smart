@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, X, AlertTriangle, CheckCircle, Lightbulb, TrendingUp } from 'lucide-react';
+import { Bell, X, AlertTriangle, CheckCircle, Lightbulb, TrendingUp, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { toast } from 'sonner';
 
 interface SmartNotification {
   id: string;
@@ -75,13 +76,29 @@ export function useSmartNotifications() {
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
   };
 
+  const deleteNotification = async (id: string) => {
+    if (!user) return;
+    const { error } = await supabase.from('smart_notifications').delete().eq('id', id);
+    if (error) { toast.error(error.message); return; }
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    toast.success('Notification removed');
+  };
+
+  const clearAll = async () => {
+    if (!user) return;
+    const { error } = await supabase.from('smart_notifications').delete().eq('user_id', user.id);
+    if (error) { toast.error(error.message); return; }
+    setNotifications([]);
+    toast.success('All notifications cleared');
+  };
+
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   useEffect(() => {
     fetchNotifications();
   }, [user]);
 
-  return { notifications, unreadCount, loading, generateInsights, markAllRead, fetchNotifications };
+  return { notifications, unreadCount, loading, generateInsights, markAllRead, fetchNotifications, deleteNotification, clearAll };
 }
 
 export function NotificationBell({
@@ -112,11 +129,15 @@ export function NotificationPanel({
   loading,
   onClose,
   onRefresh,
+  onDelete,
+  onClearAll,
 }: {
   notifications: SmartNotification[];
   loading: boolean;
   onClose: () => void;
   onRefresh: () => void;
+  onDelete?: (id: string) => void;
+  onClearAll?: () => void;
 }) {
   return (
     <motion.div
@@ -143,6 +164,14 @@ export function NotificationPanel({
             >
               {loading ? 'Analyzing...' : 'Refresh'}
             </button>
+            {notifications.length > 0 && onClearAll && (
+              <button
+                onClick={onClearAll}
+                className="text-[10px] px-2.5 py-1 rounded-lg bg-destructive/10 text-destructive font-medium"
+              >
+                Clear all
+              </button>
+            )}
             <button onClick={onClose} className="text-muted-foreground">
               <X size={18} />
             </button>
@@ -163,29 +192,41 @@ export function NotificationPanel({
           </div>
         ) : (
           <div className="space-y-2">
-            {notifications.map((n, i) => {
-              const config = typeConfig[n.type] || typeConfig.insight;
-              const Icon = config.icon;
-              return (
-                <motion.div
-                  key={n.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className={`flex items-start gap-2.5 p-3 rounded-xl ${!n.is_read ? 'bg-accent/30' : 'bg-muted/30'}`}
-                >
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${config.className}`}>
-                    <Icon size={14} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs leading-relaxed">{n.message}</p>
-                    <p className="text-[9px] text-muted-foreground mt-1">
-                      {new Date(n.created_at).toLocaleDateString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                </motion.div>
-              );
-            })}
+            <AnimatePresence>
+              {notifications.map((n, i) => {
+                const config = typeConfig[n.type] || typeConfig.insight;
+                const Icon = config.icon;
+                return (
+                  <motion.div
+                    key={n.id}
+                    layout
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 10, height: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className={`group flex items-start gap-2.5 p-3 rounded-xl ${!n.is_read ? 'bg-accent/30' : 'bg-muted/30'}`}
+                  >
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${config.className}`}>
+                      <Icon size={14} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs leading-relaxed">{n.message}</p>
+                      <p className="text-[9px] text-muted-foreground mt-1">
+                        {new Date(n.created_at).toLocaleDateString('en', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                    {onDelete && (
+                      <button
+                        onClick={() => onDelete(n.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-muted-foreground hover:text-destructive transition-all"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </div>
         )}
       </motion.div>
