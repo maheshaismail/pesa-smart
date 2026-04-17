@@ -63,6 +63,7 @@ export type Database = {
           icon: string | null
           id: string
           monthly_limit: number
+          period: string
           updated_at: string
           user_id: string
         }
@@ -72,6 +73,7 @@ export type Database = {
           icon?: string | null
           id?: string
           monthly_limit: number
+          period?: string
           updated_at?: string
           user_id: string
         }
@@ -81,6 +83,7 @@ export type Database = {
           icon?: string | null
           id?: string
           monthly_limit?: number
+          period?: string
           updated_at?: string
           user_id?: string
         }
