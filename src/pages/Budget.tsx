@@ -2,7 +2,7 @@ import { useI18n } from '@/lib/i18n';
 import { fetchBudgetCategories, fetchTransactions, formatTZS, upsertBudgetCategory, deleteBudgetCategory, BudgetPeriod } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, X, Pencil, Trash2, ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react';
+import { Plus, X, Pencil, Trash2, Wallet, TrendingDown, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -117,32 +117,60 @@ const Budget = () => {
         ))}
       </div>
 
+      {/* Income vs Budget summary — always visible */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl gradient-primary p-4 shadow-elevated">
+        <div className="flex items-center gap-2 text-primary-foreground mb-3">
+          <Wallet size={16} />
+          <span className="text-sm font-medium">{periodLabels[activeTab]} Income</span>
+        </div>
+        <div className="text-3xl font-bold font-display text-primary-foreground mb-3">
+          {formatTZS(periodIncome)} <span className="text-sm font-normal opacity-70">TZS</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="rounded-lg bg-primary-foreground/10 p-2.5">
+            <div className="flex items-center gap-1 text-primary-foreground/80 text-[10px] mb-0.5">
+              <TrendingDown size={10} /> Spent
+            </div>
+            <p className="text-sm font-semibold font-display text-primary-foreground">{formatTZS(periodExpenses)}</p>
+          </div>
+          <div className="rounded-lg bg-primary-foreground/10 p-2.5">
+            <div className="flex items-center gap-1 text-primary-foreground/80 text-[10px] mb-0.5">
+              <TrendingUp size={10} /> Remaining
+            </div>
+            <p className={`text-sm font-semibold font-display ${remainingIncome < 0 ? 'text-destructive-foreground' : 'text-primary-foreground'}`}>
+              {formatTZS(remainingIncome)}
+            </p>
+          </div>
+        </div>
+        <div className="h-2 rounded-full bg-primary-foreground/20 overflow-hidden">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${periodIncome > 0 ? Math.min((periodExpenses / periodIncome) * 100, 100) : 0}%` }}
+            transition={{ duration: 1 }}
+            className={`h-full rounded-full ${periodExpenses > periodIncome ? 'bg-destructive' : 'bg-primary-foreground'}`}
+          />
+        </div>
+        <p className="text-[10px] text-primary-foreground/70 mt-2">
+          {periodIncome === 0
+            ? 'Add income transactions to track your remaining balance'
+            : periodExpenses > periodIncome
+              ? '⚠️ Spending exceeds income for this period'
+              : `${periodIncome > 0 ? Math.round((periodExpenses / periodIncome) * 100) : 0}% of income spent`}
+        </p>
+      </motion.div>
+
+      {/* Category budgets section */}
       {filteredBudgets.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-sm text-muted-foreground mb-4">No {periodLabels[activeTab].toLowerCase()} budgets set up yet</p>
-          {budgets.length === 0 && (
-            <Button onClick={setupDefaults} className="gradient-primary border-0 text-primary-foreground rounded-xl">
-              Set Up Default Budgets
-            </Button>
-          )}
+        <div className="text-center py-8 rounded-xl bg-card shadow-card">
+          <p className="text-sm text-muted-foreground mb-1">No {periodLabels[activeTab].toLowerCase()} category budgets yet</p>
+          <p className="text-xs text-muted-foreground/70">Tap "Add" above to set spending limits per category</p>
         </div>
       ) : (
         <>
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl gradient-primary p-4 shadow-elevated">
-            <div className="flex justify-between text-primary-foreground mb-2">
-              <span className="text-sm">{t('bud.spent')} ({periodLabels[activeTab]})</span>
-              <span className="text-sm">{t('bud.limit')}</span>
-            </div>
-            <div className="flex justify-between text-primary-foreground mb-3">
-              <span className="text-2xl font-bold font-display">{formatTZS(totalSpent)}</span>
-              <span className="text-lg font-semibold font-display opacity-70">{formatTZS(totalLimit)}</span>
-            </div>
-            <div className="h-2 rounded-full bg-primary-foreground/20 overflow-hidden">
-              <motion.div initial={{ width: 0 }} animate={{ width: `${totalLimit > 0 ? Math.min((totalSpent / totalLimit) * 100, 100) : 0}%` }} transition={{ duration: 1 }} className="h-full rounded-full bg-primary-foreground" />
-            </div>
-            <p className="text-xs text-primary-foreground/70 mt-2">{formatTZS(Math.max(0, totalLimit - totalSpent))} TZS {t('bud.remaining').toLowerCase()}</p>
-          </motion.div>
-
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-sm font-semibold">Category Budgets</h2>
+            <span className="text-xs text-muted-foreground">{formatTZS(totalSpent)} / {formatTZS(totalLimit)}</span>
+          </div>
           <div className="space-y-3">
             {budgetWithSpent.map((cat, i) => {
               const pct = cat.monthly_limit > 0 ? Math.min((cat.spent / Number(cat.monthly_limit)) * 100, 100) : 0;
