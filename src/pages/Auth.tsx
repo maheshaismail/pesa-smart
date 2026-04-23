@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
+import { useI18n } from '@/lib/i18n';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Globe } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { getSiteUrl } from '@/lib/site-url';
 
 const Auth = () => {
   const { signIn, signUp } = useAuth();
+  const { t, lang, setLang } = useI18n();
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -25,14 +28,14 @@ const Auth = () => {
 
     if (forgotMode) {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${getSiteUrl()}/reset-password`,
       });
       setLoading(false);
       if (error) {
         toast.error(error.message);
       } else {
         setResetSent(true);
-        toast.success('Password reset email sent! Check your inbox.');
+        toast.success(t('auth.resetSent'));
       }
       return;
     }
@@ -46,7 +49,7 @@ const Auth = () => {
       }
     } else {
       if (!fullName.trim()) {
-        toast.error('Please enter your name');
+        toast.error(t('auth.nameRequired'));
         setLoading(false);
         return;
       }
@@ -54,7 +57,7 @@ const Auth = () => {
       if (error) {
         toast.error(error.message);
       } else {
-        toast.success('Check your email to confirm your account!');
+        toast.success(t('auth.checkEmail'));
       }
     }
     setLoading(false);
