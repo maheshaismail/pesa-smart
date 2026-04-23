@@ -64,7 +64,17 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-5 bg-background">
+    <div className="min-h-screen flex flex-col items-center justify-center px-5 bg-background relative">
+      {/* Language toggle (top right) */}
+      <button
+        onClick={() => setLang(lang === 'en' ? 'sw' : 'en')}
+        className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+        aria-label={t('gen.language')}
+      >
+        <Globe size={14} />
+        {lang === 'en' ? 'SW' : 'EN'}
+      </button>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -76,12 +86,12 @@ const Auth = () => {
             <span className="text-primary-foreground font-bold text-2xl font-display">P</span>
           </div>
           <h1 className="text-2xl font-bold font-display">PesaSmart</h1>
-          <p className="text-sm text-muted-foreground mt-1">AI-powered financial planning</p>
+          <p className="text-sm text-muted-foreground mt-1">{t('auth.tagline')}</p>
         </div>
 
         {/* Toggle */}
         <div className="flex rounded-xl bg-muted p-1 mb-6">
-          {(['Login', 'Sign Up'] as const).map((tab, i) => (
+          {([t('auth.login'), t('auth.signup')] as const).map((tab, i) => (
             <button
               key={tab}
               onClick={() => setIsLogin(i === 0)}
@@ -98,7 +108,7 @@ const Auth = () => {
           {!isLogin && !forgotMode && (
             <input
               type="text"
-              placeholder="Full Name"
+              placeholder={t('auth.fullName')}
               value={fullName}
               onChange={e => setFullName(e.target.value)}
               className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -107,7 +117,7 @@ const Auth = () => {
           )}
           <input
             type="email"
-            placeholder="Email"
+            placeholder={t('auth.email')}
             value={email}
             onChange={e => setEmail(e.target.value)}
             className="w-full rounded-xl border border-input bg-card px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -117,7 +127,7 @@ const Auth = () => {
             <div className="relative">
               <input
                 type={showPw ? 'text' : 'password'}
-                placeholder="Password"
+                placeholder={t('auth.password')}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 className="w-full rounded-xl border border-input bg-card px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -136,19 +146,19 @@ const Auth = () => {
                 onClick={() => { setForgotMode(true); setResetSent(false); }}
                 className="text-xs text-primary font-medium hover:underline"
               >
-                Forgot password?
+                {t('auth.forgot')}
               </button>
             </div>
           )}
           {forgotMode && resetSent ? (
             <div className="text-center py-2">
-              <p className="text-sm text-muted-foreground mb-3">We sent a reset link to <span className="font-medium text-foreground">{email}</span></p>
+              <p className="text-sm text-muted-foreground mb-3">{t('auth.resetHint')} <span className="font-medium text-foreground">{email}</span></p>
               <button
                 type="button"
                 onClick={() => { setForgotMode(false); setResetSent(false); }}
                 className="text-xs text-primary font-medium hover:underline"
               >
-                Back to Login
+                {t('auth.backLogin')}
               </button>
             </div>
           ) : (
@@ -157,7 +167,7 @@ const Auth = () => {
               disabled={loading}
               className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3 text-sm font-semibold"
             >
-              {loading ? 'Please wait...' : forgotMode ? 'Send Reset Link' : isLogin ? 'Log In' : 'Create Account'}
+              {loading ? t('auth.wait') : forgotMode ? t('auth.sendReset') : isLogin ? t('auth.loginBtn') : t('auth.createAccount')}
             </Button>
           )}
           {forgotMode && !resetSent && (
@@ -166,7 +176,7 @@ const Auth = () => {
               onClick={() => setForgotMode(false)}
               className="w-full text-xs text-muted-foreground hover:text-foreground text-center"
             >
-              Back to Login
+              {t('auth.backLogin')}
             </button>
           )}
         </form>
