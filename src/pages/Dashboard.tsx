@@ -97,7 +97,7 @@ const Dashboard = () => {
     .reverse()
     .slice(-6);
 
-  const healthLabel = summary.score >= 80 ? 'Great' : summary.score >= 60 ? 'Good' : summary.score >= 40 ? 'Fair' : 'Low';
+  const healthLabel = summary.score >= 80 ? t('dash.health.great') : summary.score >= 60 ? t('dash.health.good') : summary.score >= 40 ? t('dash.health.fair') : t('dash.health.low');
 
   const insights = transactions.length > 0
     ? [
@@ -109,7 +109,7 @@ const Dashboard = () => {
           ? 'Your financial health is strong. Consider investing surplus funds.'
           : 'Focus on reducing non-essential spending to improve your score.',
       ]
-    : ['Add your first transaction to see AI insights about your finances!'];
+    : [t('dash.noTx')];
 
   return (
     <div className="space-y-5 pb-24 pt-2">
@@ -122,7 +122,7 @@ const Dashboard = () => {
           </p>
         </div>
         <Button onClick={() => setShowQuickAdd(true)} size="sm" className="gap-1.5 gradient-primary border-0 text-primary-foreground rounded-xl mt-1">
-          <Plus size={16} /> Quick Add
+          <Plus size={16} /> {t('dash.quickAdd')}
         </Button>
       </motion.div>
 
@@ -152,7 +152,7 @@ const Dashboard = () => {
 
       {chartData.length > 1 && (
         <motion.div variants={fadeUp} initial="hidden" animate="show" custom={2} className="rounded-xl bg-card p-4 shadow-card">
-          <h3 className="text-sm font-semibold font-display mb-3">Income vs Expenses</h3>
+          <h3 className="text-sm font-semibold font-display mb-3">{t('dash.incomeVsExp')}</h3>
           <div className="h-40">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
@@ -207,7 +207,7 @@ const Dashboard = () => {
       <motion.div variants={fadeUp} initial="hidden" animate="show" custom={5}>
         <h3 className="text-sm font-semibold font-display mb-3">{t('dash.recent')}</h3>
         {transactions.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">No transactions yet. Add your first one!</p>
+          <p className="text-sm text-muted-foreground text-center py-8">{t('dash.noTx')}</p>
         ) : (
           <div className="space-y-2">
             {transactions.slice(0, 6).map((tx) => (
@@ -236,7 +236,7 @@ const Dashboard = () => {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-foreground/30 glass flex items-end justify-center" onClick={() => setShowQuickAdd(false)}>
             <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 300 }} className="w-full max-w-md rounded-t-2xl bg-card p-5 safe-bottom max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold font-display">Quick Add</h2>
+                <h2 className="text-lg font-bold font-display">{t('dash.quickAdd')}</h2>
                 <button onClick={() => setShowQuickAdd(false)} className="text-muted-foreground"><X size={20} /></button>
               </div>
 
@@ -247,19 +247,19 @@ const Dashboard = () => {
                     onClick={() => setQuickTx(p => ({ ...p, type: 'expense' }))}
                     className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${quickTx.type === 'expense' ? 'bg-destructive text-destructive-foreground' : 'bg-muted text-muted-foreground'}`}
                   >
-                    Expense
+                    {t('dash.type.expense')}
                   </button>
                   <button
                     onClick={() => setQuickTx(p => ({ ...p, type: 'income' }))}
                     className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${quickTx.type === 'income' ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground'}`}
                   >
-                    Income
+                    {t('dash.type.income')}
                   </button>
                 </div>
 
                 {/* Quick amounts */}
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1.5 block">Quick amount (TZS)</label>
+                  <label className="text-xs text-muted-foreground mb-1.5 block">{t('dash.quick.amount')}</label>
                   <div className="flex gap-2 flex-wrap">
                     {quickAmounts.map(amt => (
                       <button
@@ -278,7 +278,7 @@ const Dashboard = () => {
                 {/* Custom amount */}
                 <input
                   type="number"
-                  placeholder="Or enter custom amount (TZS)"
+                  placeholder={t('dash.quick.custom')}
                   value={quickTx.amount}
                   onChange={e => setQuickTx(p => ({ ...p, amount: e.target.value }))}
                   className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -286,7 +286,7 @@ const Dashboard = () => {
 
                 {/* Category chips */}
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1.5 block">Category</label>
+                  <label className="text-xs text-muted-foreground mb-1.5 block">{t('exp.category')}</label>
                   <div className="flex gap-2 flex-wrap">
                     {categories.map(cat => (
                       <button
