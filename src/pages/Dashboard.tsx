@@ -305,7 +305,7 @@ const Dashboard = () => {
                 {/* Description */}
                 <input
                   type="text"
-                  placeholder="Description (optional)"
+                  placeholder={t('dash.quick.descOpt')}
                   value={quickTx.description}
                   onChange={e => setQuickTx(p => ({ ...p, description: e.target.value }))}
                   className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -316,7 +316,7 @@ const Dashboard = () => {
                   disabled={addMutation.isPending || !quickTx.amount}
                   className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3"
                 >
-                  {addMutation.isPending ? 'Saving...' : `Add ${quickTx.type === 'income' ? 'Income' : 'Expense'} — ${quickTx.amount ? formatTZS(parseInt(quickTx.amount)) + ' TZS' : ''}`}
+                  {addMutation.isPending ? t('dash.quick.saving') : `${t('dash.quick.add')} ${quickTx.type === 'income' ? t('dash.type.income') : t('dash.type.expense')} — ${quickTx.amount ? formatTZS(parseInt(quickTx.amount)) + ' TZS' : ''}`}
                 </Button>
               </div>
             </motion.div>
