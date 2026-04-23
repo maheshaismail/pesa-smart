@@ -52,14 +52,6 @@ const Budget = () => {
     setShowAdd(true);
   };
 
-  const setupDefaults = async () => {
-    for (const b of defaultBudgets) {
-      await upsertBudgetCategory({ category: b.category, monthly_limit: b.limit, icon: b.icon, period: b.period });
-    }
-    queryClient.invalidateQueries({ queryKey: ['budgets'] });
-    toast.success('Default budgets created!');
-  };
-
   // Calculate period start/end
   const getPeriodRange = (period: BudgetPeriod) => {
     const now = new Date();
@@ -77,15 +69,22 @@ const Budget = () => {
     return { start, end: now };
   };
 
+  const activeRange = getPeriodRange(activeTab);
+
+  // Income & expenses for the active period (income is uncategorized — counts ALL income)
+  const periodTxs = transactions.filter(tx => {
+    const d = new Date(tx.transaction_date);
+    return d >= activeRange.start && d <= activeRange.end;
+  });
+  const periodIncome = periodTxs.filter(tx => tx.type === 'income').reduce((s, tx) => s + Number(tx.amount), 0);
+  const periodExpenses = periodTxs.filter(tx => tx.type === 'expense').reduce((s, tx) => s + Number(tx.amount), 0);
+  const remainingIncome = periodIncome - periodExpenses;
+
   const filteredBudgets = budgets.filter(b => (b.period || 'monthly') === activeTab);
 
   const budgetWithSpent = filteredBudgets.map(b => {
-    const range = getPeriodRange(b.period || 'monthly');
-    const spent = transactions
-      .filter(tx => {
-        const d = new Date(tx.transaction_date);
-        return tx.type === 'expense' && tx.category === b.category && d >= range.start && d <= range.end;
-      })
+    const spent = periodTxs
+      .filter(tx => tx.type === 'expense' && tx.category === b.category)
       .reduce((s, tx) => s + Number(tx.amount), 0);
     return { ...b, spent };
   });
