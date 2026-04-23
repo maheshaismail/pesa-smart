@@ -12,14 +12,14 @@ const mainNav = [
 ];
 
 const moreNav = [
-  { path: '/reports', icon: BarChart3, label: 'Reports' },
-  { path: '/sms-parser', icon: Smartphone, label: 'SMS Parser' },
-  { path: '/debts', icon: CreditCard, label: 'Debts' },
-  { path: '/tax', icon: Calculator, label: 'Tax' },
-  { path: '/investments', icon: TrendingUp, label: 'Invest' },
-  { path: '/savings', icon: Target, label: 'Savings' },
-  { path: '/advisor', icon: MessageCircle, label: 'AI Advisor' },
-  { path: '/settings', icon: Settings, label: 'Settings' },
+  { path: '/reports', icon: BarChart3, labelKey: 'nav.reports' },
+  { path: '/sms-parser', icon: Smartphone, labelKey: 'nav.sms' },
+  { path: '/debts', icon: CreditCard, labelKey: 'nav.debts' },
+  { path: '/tax', icon: Calculator, labelKey: 'nav.tax' },
+  { path: '/investments', icon: TrendingUp, labelKey: 'nav.invest' },
+  { path: '/savings', icon: Target, labelKey: 'nav.savings' },
+  { path: '/advisor', icon: MessageCircle, labelKey: 'nav.advisor' },
+  { path: '/settings', icon: Settings, labelKey: 'nav.settings' },
 ];
 
 const BottomNav = () => {
@@ -41,7 +41,7 @@ const BottomNav = () => {
                   return (
                     <Link key={item.path} to={item.path} onClick={() => setShowMore(false)} className={`flex flex-col items-center gap-1.5 p-3 rounded-xl transition-colors ${active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}>
                       <Icon size={20} />
-                      <span className="text-[10px] font-medium">{item.label}</span>
+                      <span className="text-[10px] font-medium">{t(item.labelKey)}</span>
                     </Link>
                   );
                 })}
@@ -71,7 +71,7 @@ const BottomNav = () => {
               <motion.div layoutId="nav-indicator" className="absolute -top-1.5 h-0.5 w-8 rounded-full gradient-primary" transition={{ type: 'spring', stiffness: 400, damping: 30 }} />
             )}
             <MoreHorizontal size={22} className={isMoreActive || showMore ? 'text-primary' : 'text-muted-foreground'} />
-            <span className={`text-[10px] font-medium ${isMoreActive || showMore ? 'text-primary' : 'text-muted-foreground'}`}>More</span>
+            <span className={`text-[10px] font-medium ${isMoreActive || showMore ? 'text-primary' : 'text-muted-foreground'}`}>{t('nav.more')}</span>
           </button>
         </div>
       </nav>
