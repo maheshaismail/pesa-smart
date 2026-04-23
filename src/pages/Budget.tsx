@@ -2,7 +2,7 @@ import { useI18n } from '@/lib/i18n';
 import { fetchBudgetCategories, fetchTransactions, formatTZS, upsertBudgetCategory, deleteBudgetCategory, BudgetPeriod } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, X, Pencil, Trash2 } from 'lucide-react';
+import { Plus, X, Pencil, Trash2, ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -10,15 +10,6 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-
-const defaultBudgets: { category: string; icon: string; limit: number; period: BudgetPeriod }[] = [
-  { category: 'Food', icon: '🍽️', limit: 300000, period: 'monthly' },
-  { category: 'Transport', icon: '🚌', limit: 150000, period: 'monthly' },
-  { category: 'Rent', icon: '🏠', limit: 400000, period: 'monthly' },
-  { category: 'Utilities', icon: '💡', limit: 100000, period: 'monthly' },
-  { category: 'Entertainment', icon: '🎬', limit: 100000, period: 'monthly' },
-  { category: 'Education', icon: '📖', limit: 250000, period: 'monthly' },
-];
 
 const periodLabels: Record<BudgetPeriod, string> = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
 
