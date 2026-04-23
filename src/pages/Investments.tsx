@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { useI18n } from '@/lib/i18n';
 import { formatTZS } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, Shield, Zap, BarChart3, Calculator, X } from 'lucide-react';
+import { TrendingUp, Calculator, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface Investment {
@@ -27,6 +28,7 @@ const investments: Investment[] = [
 const riskColors = { Low: 'text-success bg-success/10', Medium: 'text-warning bg-warning/10', High: 'text-destructive bg-destructive/10' };
 
 const Investments = () => {
+  const { t } = useI18n();
   const [riskFilter, setRiskFilter] = useState<'all' | 'Low' | 'Medium' | 'High'>('all');
   const [simAmount, setSimAmount] = useState('');
   const [simYears, setSimYears] = useState('5');
@@ -55,19 +57,19 @@ const Investments = () => {
 
   return (
     <div className="space-y-5 pb-24 pt-2">
-      <h1 className="text-xl font-bold font-display">Investments</h1>
+      <h1 className="text-xl font-bold font-display">{t('inv.title')}</h1>
 
       {/* Simulator Input */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl bg-card p-4 shadow-card space-y-3">
-        <h3 className="text-sm font-semibold font-display flex items-center gap-1.5"><Calculator size={14} className="text-primary" /> Return Simulator</h3>
-        <p className="text-[11px] text-muted-foreground">Enter amount & years, then tap an investment below to calculate returns.</p>
+        <h3 className="text-sm font-semibold font-display flex items-center gap-1.5"><Calculator size={14} className="text-primary" /> {t('inv.simulator')}</h3>
+        <p className="text-[11px] text-muted-foreground">{t('inv.simHint')}</p>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-[10px] text-muted-foreground mb-1 block">Amount (TZS)</label>
+            <label className="text-[10px] text-muted-foreground mb-1 block">{t('inv.amountTzs')}</label>
             <input type="number" placeholder="e.g. 1,000,000" value={simAmount} onChange={e => { setSimAmount(e.target.value); setSelectedInv(null); }} className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
           <div>
-            <label className="text-[10px] text-muted-foreground mb-1 block">Years</label>
+            <label className="text-[10px] text-muted-foreground mb-1 block">{t('inv.years')}</label>
             <input type="number" placeholder="e.g. 5" value={simYears} onChange={e => { setSimYears(e.target.value); setSelectedInv(null); }} className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
         </div>
@@ -82,19 +84,19 @@ const Investments = () => {
                     <span className="text-lg">{selectedInv.icon}</span>
                     <div>
                       <p className="text-xs font-semibold">{selectedInv.name}</p>
-                      <p className="text-[10px] text-muted-foreground">Rate: {simResult.rateRange} p.a. · {simYears} years</p>
+                      <p className="text-[10px] text-muted-foreground">{t('inv.rate')}: {simResult.rateRange} p.a. · {simYears} {t('inv.years').toLowerCase()}</p>
                     </div>
                   </div>
                   <button onClick={() => setSelectedInv(null)} className="p-1 rounded-full hover:bg-muted"><X size={14} className="text-muted-foreground" /></button>
                 </div>
                 <div className="grid grid-cols-2 gap-3 pt-1">
                   <div className="rounded-lg bg-background p-2 text-center">
-                    <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Conservative ({selectedInv.returnMin}%)</p>
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{t('inv.conservative')} ({selectedInv.returnMin}%)</p>
                     <p className="text-sm font-bold font-display text-primary">{formatTZS(Math.round(simResult.futureMin))}</p>
                     <p className="text-[10px] text-success font-medium">+{formatTZS(Math.round(simResult.gainMin))}</p>
                   </div>
                   <div className="rounded-lg bg-background p-2 text-center">
-                    <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Optimistic ({selectedInv.returnMax}%)</p>
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{t('inv.optimistic')} ({selectedInv.returnMax}%)</p>
                     <p className="text-sm font-bold font-display text-primary">{formatTZS(Math.round(simResult.futureMax))}</p>
                     <p className="text-[10px] text-success font-medium">+{formatTZS(Math.round(simResult.gainMax))}</p>
                   </div>
@@ -105,17 +107,20 @@ const Investments = () => {
         </AnimatePresence>
 
         {hasSimInputs && !selectedInv && (
-          <p className="text-[11px] text-primary font-medium animate-pulse">👇 Tap an investment below to see your returns</p>
+          <p className="text-[11px] text-primary font-medium animate-pulse">{t('inv.tapHint')}</p>
         )}
       </motion.div>
 
       {/* Risk filter */}
       <div className="flex gap-2">
-        {(['all', 'Low', 'Medium', 'High'] as const).map(r => (
-          <button key={r} onClick={() => setRiskFilter(r)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${riskFilter === r ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-            {r === 'all' ? 'All' : r + ' Risk'}
-          </button>
-        ))}
+        {(['all', 'Low', 'Medium', 'High'] as const).map(r => {
+          const label = r === 'all' ? t('inv.risk.all') : r === 'Low' ? t('inv.risk.low') : r === 'Medium' ? t('inv.risk.medium') : t('inv.risk.high');
+          return (
+            <button key={r} onClick={() => setRiskFilter(r)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${riskFilter === r ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+              {r === 'all' ? label : `${label} ${t('inv.risk.suffix')}`}
+            </button>
+          );
+        })}
       </div>
 
       {/* Investment options */}
@@ -142,11 +147,11 @@ const Investments = () => {
                   <p className="text-[11px] text-muted-foreground mb-2">{inv.description}</p>
                   <div className="flex gap-3 text-[10px] text-muted-foreground">
                     <span className="flex items-center gap-1"><TrendingUp size={10} className="text-success" /> {inv.returnMin}-{inv.returnMax}% p.a.</span>
-                    <span>Min: {formatTZS(inv.minAmount)} TZS</span>
+                    <span>{t('inv.min')}: {formatTZS(inv.minAmount)} TZS</span>
                     <span>{inv.type}</span>
                   </div>
                   {isClickable && !isSelected && (
-                    <p className="text-[10px] text-primary mt-1.5 font-medium">Tap to calculate →</p>
+                    <p className="text-[10px] text-primary mt-1.5 font-medium">{t('inv.tapCalc')}</p>
                   )}
                 </div>
               </div>
