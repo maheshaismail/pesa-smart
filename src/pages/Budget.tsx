@@ -1,8 +1,9 @@
 import { useI18n } from '@/lib/i18n';
-import { fetchBudgetCategories, fetchTransactions, formatTZS, upsertBudgetCategory, deleteBudgetCategory, BudgetPeriod } from '@/lib/api';
+import { fetchBudgetCategories, fetchTransactions, formatTZS, upsertBudgetCategory, deleteBudgetCategory, fetchSavingsGoals, BudgetPeriod } from '@/lib/api';
+import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, X, Pencil, Trash2, Wallet, TrendingDown, TrendingUp } from 'lucide-react';
+import { Plus, X, Pencil, Trash2, Wallet, TrendingDown, TrendingUp, PiggyBank, AlertTriangle, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { toast } from 'sonner';
