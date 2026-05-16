@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { fetchTransactions, addTransaction, updateTransaction, deleteTransaction, bulkDeleteTransactions, formatTZS, type Transaction } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, ArrowUpRight, ArrowDownRight, X, MessageSquare, Loader2, Pencil, Trash2, CheckSquare, Square, XCircle, Search, CalendarIcon, Filter } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight, X, MessageSquare, Loader2, Pencil, Trash2, CheckSquare, Square, XCircle, Search, CalendarIcon, Filter, Sparkles, Brain } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
