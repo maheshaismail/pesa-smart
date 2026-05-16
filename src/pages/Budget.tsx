@@ -226,6 +226,50 @@ const Budget = () => {
         </p>
       </motion.div>
 
+      {/* Cascade: income → budget → savings/debts */}
+      {filteredBudgets.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl bg-card p-4 shadow-card space-y-2.5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold font-display flex items-center gap-1.5">
+              <Sparkles size={14} className="text-primary" /> Money Flow
+            </h3>
+            <button
+              onClick={settlePeriod}
+              disabled={settling || (autoSavings === 0 && autoDebt === 0)}
+              className="text-[10px] font-medium px-2.5 py-1 rounded-lg bg-primary text-primary-foreground disabled:opacity-40"
+            >
+              {settling ? 'Settling...' : 'Settle period'}
+            </button>
+          </div>
+          <div className="space-y-1.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-muted-foreground"><Wallet size={11} /> Income</span>
+              <span className="font-medium">{formatTZS(periodIncome)}</span>
+            </div>
+            <div className="flex items-center justify-between pl-4 border-l-2 border-primary/30">
+              <span className="text-muted-foreground">− Allocated to budgets</span>
+              <span className="font-medium text-destructive">−{formatTZS(allocatedFromIncome)}</span>
+            </div>
+            <div className="flex items-center justify-between pl-4 border-l-2 border-primary/30">
+              <span className="text-muted-foreground">= Unallocated income</span>
+              <span className={`font-medium ${incomeAfterBudget < 0 ? 'text-destructive' : ''}`}>{formatTZS(incomeAfterBudget)}</span>
+            </div>
+            <div className="border-t border-border pt-1.5 mt-1.5" />
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5"><PiggyBank size={11} className="text-success" /> Auto savings (unspent budget)</span>
+              <span className="font-semibold text-success">+{formatTZS(autoSavings)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5"><AlertTriangle size={11} className="text-destructive" /> Auto debt (overspend)</span>
+              <span className="font-semibold text-destructive">{formatTZS(autoDebt)}</span>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            Budget is reserved from your income. Each expense reduces its category budget. At period end, tap <b>Settle</b> to push unspent budget into Savings and overspend into Debts.
+          </p>
+        </motion.div>
+      )}
+
       {/* Category budgets section */}
       {filteredBudgets.length === 0 ? (
         <div className="text-center py-8 rounded-xl bg-card shadow-card">
