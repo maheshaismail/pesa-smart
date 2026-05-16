@@ -1,8 +1,9 @@
 import { useI18n } from '@/lib/i18n';
-import { fetchBudgetCategories, fetchTransactions, formatTZS, upsertBudgetCategory, deleteBudgetCategory, BudgetPeriod } from '@/lib/api';
+import { fetchBudgetCategories, fetchTransactions, formatTZS, upsertBudgetCategory, deleteBudgetCategory, fetchSavingsGoals, BudgetPeriod } from '@/lib/api';
+import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, X, Pencil, Trash2, Wallet, TrendingDown, TrendingUp } from 'lucide-react';
+import { Plus, X, Pencil, Trash2, Wallet, TrendingDown, TrendingUp, PiggyBank, AlertTriangle, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -92,6 +93,72 @@ const Budget = () => {
   const totalLimit = budgetWithSpent.reduce((s, c) => s + Number(c.monthly_limit), 0);
   const totalSpent = budgetWithSpent.reduce((s, c) => s + c.spent, 0);
 
+  // Cascade math: income → budget → savings (leftover) / debt (overspend)
+  const allocatedFromIncome = totalLimit;
+  const incomeAfterBudget = periodIncome - allocatedFromIncome;
+  const perCategoryLeftover = budgetWithSpent.map(b => ({
+    category: b.category,
+    leftover: Number(b.monthly_limit) - b.spent, // positive = saving, negative = overspend
+  }));
+  const autoSavings = perCategoryLeftover.reduce((s, c) => s + Math.max(0, c.leftover), 0);
+  const autoDebt = perCategoryLeftover.reduce((s, c) => s + Math.max(0, -c.leftover), 0);
+
+  // Period key for idempotent settlement records
+  const periodKey = activeTab === 'daily'
+    ? activeRange.start.toISOString().split('T')[0]
+    : activeTab === 'weekly'
+      ? `W${activeRange.start.toISOString().split('T')[0]}`
+      : `${activeRange.start.getFullYear()}-${String(activeRange.start.getMonth() + 1).padStart(2, '0')}`;
+  const savingsLabel = `Auto Savings · ${activeTab} ${periodKey}`;
+  const debtLabel = `Budget Overflow · ${activeTab} ${periodKey}`;
+
+  const [settling, setSettling] = useState(false);
+  const settlePeriod = async () => {
+    if (autoSavings === 0 && autoDebt === 0) {
+      toast.info('Nothing to settle — no leftover or overspend');
+      return;
+    }
+    setSettling(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Auto savings: upsert by name
+      if (autoSavings > 0) {
+        const { data: existing } = await supabase
+          .from('savings_goals').select('id').eq('user_id', user.id).eq('name', savingsLabel).maybeSingle();
+        if (existing) {
+          await supabase.from('savings_goals').update({ saved_amount: autoSavings, target_amount: autoSavings }).eq('id', existing.id);
+        } else {
+          await supabase.from('savings_goals').insert({
+            user_id: user.id, name: savingsLabel, target_amount: autoSavings, saved_amount: autoSavings, icon: '🏦',
+          });
+        }
+      }
+
+      // Auto debt: upsert by name
+      if (autoDebt > 0) {
+        const { data: existing } = await supabase
+          .from('debts').select('id').eq('user_id', user.id).eq('name', debtLabel).maybeSingle();
+        if (existing) {
+          await supabase.from('debts').update({ remaining_amount: autoDebt, total_amount: autoDebt }).eq('id', existing.id);
+        } else {
+          await supabase.from('debts').insert({
+            user_id: user.id, name: debtLabel, lender: 'Self (budget overflow)', total_amount: autoDebt, remaining_amount: autoDebt, type: 'personal', icon: '⚠️',
+          });
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['savings'] });
+      queryClient.invalidateQueries({ queryKey: ['debts'] });
+      toast.success(`Settled: ${formatTZS(autoSavings)} → savings, ${formatTZS(autoDebt)} → debt`);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to settle');
+    } finally {
+      setSettling(false);
+    }
+  };
+
   const icons = ['📦', '🍽️', '🚌', '🏠', '💡', '🎬', '📖', '💊'];
   const periods: BudgetPeriod[] = ['daily', 'weekly', 'monthly'];
 
@@ -158,6 +225,50 @@ const Budget = () => {
               : `${periodIncome > 0 ? Math.round((periodExpenses / periodIncome) * 100) : 0}% of income spent`}
         </p>
       </motion.div>
+
+      {/* Cascade: income → budget → savings/debts */}
+      {filteredBudgets.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl bg-card p-4 shadow-card space-y-2.5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold font-display flex items-center gap-1.5">
+              <Sparkles size={14} className="text-primary" /> Money Flow
+            </h3>
+            <button
+              onClick={settlePeriod}
+              disabled={settling || (autoSavings === 0 && autoDebt === 0)}
+              className="text-[10px] font-medium px-2.5 py-1 rounded-lg bg-primary text-primary-foreground disabled:opacity-40"
+            >
+              {settling ? 'Settling...' : 'Settle period'}
+            </button>
+          </div>
+          <div className="space-y-1.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-muted-foreground"><Wallet size={11} /> Income</span>
+              <span className="font-medium">{formatTZS(periodIncome)}</span>
+            </div>
+            <div className="flex items-center justify-between pl-4 border-l-2 border-primary/30">
+              <span className="text-muted-foreground">− Allocated to budgets</span>
+              <span className="font-medium text-destructive">−{formatTZS(allocatedFromIncome)}</span>
+            </div>
+            <div className="flex items-center justify-between pl-4 border-l-2 border-primary/30">
+              <span className="text-muted-foreground">= Unallocated income</span>
+              <span className={`font-medium ${incomeAfterBudget < 0 ? 'text-destructive' : ''}`}>{formatTZS(incomeAfterBudget)}</span>
+            </div>
+            <div className="border-t border-border pt-1.5 mt-1.5" />
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5"><PiggyBank size={11} className="text-success" /> Auto savings (unspent budget)</span>
+              <span className="font-semibold text-success">+{formatTZS(autoSavings)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5"><AlertTriangle size={11} className="text-destructive" /> Auto debt (overspend)</span>
+              <span className="font-semibold text-destructive">{formatTZS(autoDebt)}</span>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            Budget is reserved from your income. Each expense reduces its category budget. At period end, tap <b>Settle</b> to push unspent budget into Savings and overspend into Debts.
+          </p>
+        </motion.div>
+      )}
 
       {/* Category budgets section */}
       {filteredBudgets.length === 0 ? (
