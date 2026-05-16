@@ -93,6 +93,72 @@ const Budget = () => {
   const totalLimit = budgetWithSpent.reduce((s, c) => s + Number(c.monthly_limit), 0);
   const totalSpent = budgetWithSpent.reduce((s, c) => s + c.spent, 0);
 
+  // Cascade math: income → budget → savings (leftover) / debt (overspend)
+  const allocatedFromIncome = totalLimit;
+  const incomeAfterBudget = periodIncome - allocatedFromIncome;
+  const perCategoryLeftover = budgetWithSpent.map(b => ({
+    category: b.category,
+    leftover: Number(b.monthly_limit) - b.spent, // positive = saving, negative = overspend
+  }));
+  const autoSavings = perCategoryLeftover.reduce((s, c) => s + Math.max(0, c.leftover), 0);
+  const autoDebt = perCategoryLeftover.reduce((s, c) => s + Math.max(0, -c.leftover), 0);
+
+  // Period key for idempotent settlement records
+  const periodKey = activeTab === 'daily'
+    ? activeRange.start.toISOString().split('T')[0]
+    : activeTab === 'weekly'
+      ? `W${activeRange.start.toISOString().split('T')[0]}`
+      : `${activeRange.start.getFullYear()}-${String(activeRange.start.getMonth() + 1).padStart(2, '0')}`;
+  const savingsLabel = `Auto Savings · ${activeTab} ${periodKey}`;
+  const debtLabel = `Budget Overflow · ${activeTab} ${periodKey}`;
+
+  const [settling, setSettling] = useState(false);
+  const settlePeriod = async () => {
+    if (autoSavings === 0 && autoDebt === 0) {
+      toast.info('Nothing to settle — no leftover or overspend');
+      return;
+    }
+    setSettling(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Auto savings: upsert by name
+      if (autoSavings > 0) {
+        const { data: existing } = await supabase
+          .from('savings_goals').select('id').eq('user_id', user.id).eq('name', savingsLabel).maybeSingle();
+        if (existing) {
+          await supabase.from('savings_goals').update({ saved_amount: autoSavings, target_amount: autoSavings }).eq('id', existing.id);
+        } else {
+          await supabase.from('savings_goals').insert({
+            user_id: user.id, name: savingsLabel, target_amount: autoSavings, saved_amount: autoSavings, icon: '🏦',
+          });
+        }
+      }
+
+      // Auto debt: upsert by name
+      if (autoDebt > 0) {
+        const { data: existing } = await supabase
+          .from('debts').select('id').eq('user_id', user.id).eq('name', debtLabel).maybeSingle();
+        if (existing) {
+          await supabase.from('debts').update({ remaining_amount: autoDebt, total_amount: autoDebt }).eq('id', existing.id);
+        } else {
+          await supabase.from('debts').insert({
+            user_id: user.id, name: debtLabel, lender: 'Self (budget overflow)', total_amount: autoDebt, remaining_amount: autoDebt, type: 'personal', icon: '⚠️',
+          });
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['savings'] });
+      queryClient.invalidateQueries({ queryKey: ['debts'] });
+      toast.success(`Settled: ${formatTZS(autoSavings)} → savings, ${formatTZS(autoDebt)} → debt`);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to settle');
+    } finally {
+      setSettling(false);
+    }
+  };
+
   const icons = ['📦', '🍽️', '🚌', '🏠', '💡', '🎬', '📖', '💊'];
   const periods: BudgetPeriod[] = ['daily', 'weekly', 'monthly'];
 
