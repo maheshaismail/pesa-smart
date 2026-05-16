@@ -572,7 +572,7 @@ Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${forma
                 <>
                   <button onClick={() => setSmsMode(!smsMode)} className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium mb-3 transition-colors ${smsMode ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-muted text-muted-foreground'}`}>
                     <MessageSquare size={14} />
-                    {smsMode ? 'Parsing from SMS — paste below' : 'Paste SMS to auto-fill (optional)'}
+                    {smsMode ? 'Parsing SMS — paste mobile money message below (auto-detects income or expense)' : 'Paste a mobile money SMS to auto-fill (income or expense)'}
                   </button>
                   <AnimatePresence>
                     {smsMode && (
