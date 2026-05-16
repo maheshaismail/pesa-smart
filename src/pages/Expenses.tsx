@@ -134,6 +134,23 @@ const Expenses = () => {
 
   const filtered = useMemo(() => {
     let result = txs.filter(tx => filter === 'all' || tx.type === filter);
+    if (categoryFilter !== 'all') {
+      result = result.filter(tx => tx.category === categoryFilter);
+    }
+    // Period preset → date bounds (overrides custom dates unless 'custom')
+    let from = dateFrom;
+    let to = dateTo;
+    if (period !== 'all' && period !== 'custom') {
+      const now = new Date();
+      const start = new Date();
+      if (period === 'week') start.setDate(now.getDate() - 7);
+      else if (period === 'month') start.setMonth(now.getMonth() - 1);
+      else if (period === '3months') start.setMonth(now.getMonth() - 3);
+      else if (period === '6months') start.setMonth(now.getMonth() - 6);
+      else if (period === 'year') start.setFullYear(now.getFullYear() - 1);
+      from = start;
+      to = now;
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(tx =>
@@ -142,24 +159,82 @@ const Expenses = () => {
         String(tx.amount).includes(q)
       );
     }
-    if (dateFrom) {
-      const fromStr = format(dateFrom, 'yyyy-MM-dd');
+    if (from) {
+      const fromStr = format(from, 'yyyy-MM-dd');
       result = result.filter(tx => tx.transaction_date >= fromStr);
     }
-    if (dateTo) {
-      const toStr = format(dateTo, 'yyyy-MM-dd');
+    if (to) {
+      const toStr = format(to, 'yyyy-MM-dd');
       result = result.filter(tx => tx.transaction_date <= toStr);
     }
     return result;
-  }, [txs, filter, searchQuery, dateFrom, dateTo]);
+  }, [txs, filter, categoryFilter, period, searchQuery, dateFrom, dateTo]);
 
   const expenses = txs.filter(tx => tx.type === 'expense');
   const catData = categories.map(cat => ({
     name: cat, value: expenses.filter(tx => tx.category === cat).reduce((s, tx) => s + Number(tx.amount), 0),
   })).filter(c => c.value > 0);
 
-  const hasActiveFilters = !!searchQuery || !!dateFrom || !!dateTo;
-  const clearFilters = () => { setSearchQuery(''); setDateFrom(undefined); setDateTo(undefined); };
+  const hasActiveFilters = !!searchQuery || !!dateFrom || !!dateTo || categoryFilter !== 'all' || period !== 'all';
+  const clearFilters = () => { setSearchQuery(''); setDateFrom(undefined); setDateTo(undefined); setCategoryFilter('all'); setPeriod('all'); setAdvice(''); };
+
+  // Filtered summary
+  const filteredIncome = filtered.filter(tx => tx.type === 'income').reduce((s, tx) => s + Number(tx.amount), 0);
+  const filteredExpense = filtered.filter(tx => tx.type === 'expense').reduce((s, tx) => s + Number(tx.amount), 0);
+  const filteredCatBreakdown = filtered.filter(tx => tx.type === 'expense').reduce((acc, tx) => {
+    acc[tx.category] = (acc[tx.category] || 0) + Number(tx.amount); return acc;
+  }, {} as Record<string, number>);
+  const topCategory = Object.entries(filteredCatBreakdown).sort((a, b) => b[1] - a[1])[0];
+
+  const periodLabel = period === 'all' ? 'all time' : period === 'custom' ? 'selected dates' : period.replace('months', ' months');
+
+  const getAdvice = async () => {
+    if (filtered.length === 0) { toast.error('No records in this filter to analyse'); return; }
+    setAdviceLoading(true);
+    setAdvice('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const ctx = `Filtered records (${periodLabel}${categoryFilter !== 'all' ? `, category: ${categoryFilter}` : ''}):
+Total income: ${formatTZS(filteredIncome)} TZS
+Total expenses: ${formatTZS(filteredExpense)} TZS
+Net: ${formatTZS(filteredIncome - filteredExpense)} TZS
+Transaction count: ${filtered.length}
+Top category: ${topCategory ? `${topCategory[0]} (${formatTZS(topCategory[1])} TZS)` : 'N/A'}
+Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${formatTZS(v)}`).join(', ') || 'No expenses'}`;
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/financial-advisor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: `Give me concise, actionable advice (3-5 bullet points) based on my filtered financial records for ${periodLabel}.` }],
+          financialContext: ctx,
+        }),
+      });
+      if (!resp.ok) { toast.error('Failed to get advice'); setAdviceLoading(false); return; }
+      const reader = resp.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '', text = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let nl;
+        while ((nl = buffer.indexOf('\n')) !== -1) {
+          let line = buffer.slice(0, nl);
+          buffer = buffer.slice(nl + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (!line.startsWith('data: ')) continue;
+          const j = line.slice(6).trim();
+          if (j === '[DONE]') break;
+          try {
+            const p = JSON.parse(j);
+            const c = p.choices?.[0]?.delta?.content;
+            if (c) { text += c; setAdvice(text); }
+          } catch {}
+        }
+      }
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
+    finally { setAdviceLoading(false); }
+  };
 
   const handleSubmit = async () => {
     if (!newTx.amount || !newTx.description) return;
