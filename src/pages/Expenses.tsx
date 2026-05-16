@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { fetchTransactions, addTransaction, updateTransaction, deleteTransaction, bulkDeleteTransactions, formatTZS, type Transaction } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, ArrowUpRight, ArrowDownRight, X, MessageSquare, Loader2, Pencil, Trash2, CheckSquare, Square, XCircle, Search, CalendarIcon, Filter } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight, X, MessageSquare, Loader2, Pencil, Trash2, CheckSquare, Square, XCircle, Search, CalendarIcon, Filter, Sparkles, Brain } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
@@ -47,6 +47,10 @@ const Expenses = () => {
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
   const [showFilters, setShowFilters] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [period, setPeriod] = useState<'all' | 'week' | 'month' | '3months' | '6months' | 'year' | 'custom'>('all');
+  const [advice, setAdvice] = useState<string>('');
+  const [adviceLoading, setAdviceLoading] = useState(false);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['transactions'] });
 
@@ -130,6 +134,23 @@ const Expenses = () => {
 
   const filtered = useMemo(() => {
     let result = txs.filter(tx => filter === 'all' || tx.type === filter);
+    if (categoryFilter !== 'all') {
+      result = result.filter(tx => tx.category === categoryFilter);
+    }
+    // Period preset → date bounds (overrides custom dates unless 'custom')
+    let from = dateFrom;
+    let to = dateTo;
+    if (period !== 'all' && period !== 'custom') {
+      const now = new Date();
+      const start = new Date();
+      if (period === 'week') start.setDate(now.getDate() - 7);
+      else if (period === 'month') start.setMonth(now.getMonth() - 1);
+      else if (period === '3months') start.setMonth(now.getMonth() - 3);
+      else if (period === '6months') start.setMonth(now.getMonth() - 6);
+      else if (period === 'year') start.setFullYear(now.getFullYear() - 1);
+      from = start;
+      to = now;
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(tx =>
@@ -138,24 +159,82 @@ const Expenses = () => {
         String(tx.amount).includes(q)
       );
     }
-    if (dateFrom) {
-      const fromStr = format(dateFrom, 'yyyy-MM-dd');
+    if (from) {
+      const fromStr = format(from, 'yyyy-MM-dd');
       result = result.filter(tx => tx.transaction_date >= fromStr);
     }
-    if (dateTo) {
-      const toStr = format(dateTo, 'yyyy-MM-dd');
+    if (to) {
+      const toStr = format(to, 'yyyy-MM-dd');
       result = result.filter(tx => tx.transaction_date <= toStr);
     }
     return result;
-  }, [txs, filter, searchQuery, dateFrom, dateTo]);
+  }, [txs, filter, categoryFilter, period, searchQuery, dateFrom, dateTo]);
 
   const expenses = txs.filter(tx => tx.type === 'expense');
   const catData = categories.map(cat => ({
     name: cat, value: expenses.filter(tx => tx.category === cat).reduce((s, tx) => s + Number(tx.amount), 0),
   })).filter(c => c.value > 0);
 
-  const hasActiveFilters = !!searchQuery || !!dateFrom || !!dateTo;
-  const clearFilters = () => { setSearchQuery(''); setDateFrom(undefined); setDateTo(undefined); };
+  const hasActiveFilters = !!searchQuery || !!dateFrom || !!dateTo || categoryFilter !== 'all' || period !== 'all';
+  const clearFilters = () => { setSearchQuery(''); setDateFrom(undefined); setDateTo(undefined); setCategoryFilter('all'); setPeriod('all'); setAdvice(''); };
+
+  // Filtered summary
+  const filteredIncome = filtered.filter(tx => tx.type === 'income').reduce((s, tx) => s + Number(tx.amount), 0);
+  const filteredExpense = filtered.filter(tx => tx.type === 'expense').reduce((s, tx) => s + Number(tx.amount), 0);
+  const filteredCatBreakdown = filtered.filter(tx => tx.type === 'expense').reduce((acc, tx) => {
+    acc[tx.category] = (acc[tx.category] || 0) + Number(tx.amount); return acc;
+  }, {} as Record<string, number>);
+  const topCategory = Object.entries(filteredCatBreakdown).sort((a, b) => b[1] - a[1])[0];
+
+  const periodLabel = period === 'all' ? 'all time' : period === 'custom' ? 'selected dates' : period.replace('months', ' months');
+
+  const getAdvice = async () => {
+    if (filtered.length === 0) { toast.error('No records in this filter to analyse'); return; }
+    setAdviceLoading(true);
+    setAdvice('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const ctx = `Filtered records (${periodLabel}${categoryFilter !== 'all' ? `, category: ${categoryFilter}` : ''}):
+Total income: ${formatTZS(filteredIncome)} TZS
+Total expenses: ${formatTZS(filteredExpense)} TZS
+Net: ${formatTZS(filteredIncome - filteredExpense)} TZS
+Transaction count: ${filtered.length}
+Top category: ${topCategory ? `${topCategory[0]} (${formatTZS(topCategory[1])} TZS)` : 'N/A'}
+Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${formatTZS(v)}`).join(', ') || 'No expenses'}`;
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/financial-advisor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: `Give me concise, actionable advice (3-5 bullet points) based on my filtered financial records for ${periodLabel}.` }],
+          financialContext: ctx,
+        }),
+      });
+      if (!resp.ok) { toast.error('Failed to get advice'); setAdviceLoading(false); return; }
+      const reader = resp.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '', text = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let nl;
+        while ((nl = buffer.indexOf('\n')) !== -1) {
+          let line = buffer.slice(0, nl);
+          buffer = buffer.slice(nl + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (!line.startsWith('data: ')) continue;
+          const j = line.slice(6).trim();
+          if (j === '[DONE]') break;
+          try {
+            const p = JSON.parse(j);
+            const c = p.choices?.[0]?.delta?.content;
+            if (c) { text += c; setAdvice(text); }
+          } catch {}
+        }
+      }
+    } catch (e: any) { toast.error(e.message || 'Failed'); }
+    finally { setAdviceLoading(false); }
+  };
 
   const handleSubmit = async () => {
     if (!newTx.amount || !newTx.description) return;
@@ -267,6 +346,34 @@ const Expenses = () => {
         {showFilters && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
             <div className="space-y-2.5 rounded-xl bg-card p-3 shadow-card">
+              {/* Period quick presets */}
+              <div>
+                <p className="text-[10px] font-medium text-muted-foreground mb-1.5">Period</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {([
+                    ['all', 'All'], ['week', 'Week'], ['month', 'Month'],
+                    ['3months', '3 Months'], ['6months', '6 Months'], ['year', 'Year'], ['custom', 'Custom'],
+                  ] as const).map(([key, label]) => (
+                    <button key={key} onClick={() => setPeriod(key)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${period === key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Category */}
+              <div>
+                <p className="text-[10px] font-medium text-muted-foreground mb-1.5">Category</p>
+                <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                  <option value="all">All categories</option>
+                  {['Food', 'Transport', 'Rent', 'Utilities', 'Entertainment', 'Education', 'Business', 'Salary', 'Freelance', 'Other'].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Search */}
               <div className="relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -279,32 +386,34 @@ const Expenses = () => {
                 />
               </div>
 
-              {/* Date range */}
-              <div className="flex gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className={cn("flex-1 justify-start text-left text-xs rounded-lg h-10", !dateFrom && "text-muted-foreground")}>
-                      <CalendarIcon size={12} className="mr-1.5" />
-                      {dateFrom ? format(dateFrom, 'MMM dd, yyyy') : 'From date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
-                  </PopoverContent>
-                </Popover>
+              {/* Custom Date range (only when period === 'custom') */}
+              {period === 'custom' && (
+                <div className="flex gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("flex-1 justify-start text-left text-xs rounded-lg h-10", !dateFrom && "text-muted-foreground")}>
+                        <CalendarIcon size={12} className="mr-1.5" />
+                        {dateFrom ? format(dateFrom, 'MMM dd, yyyy') : 'From date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+                    </PopoverContent>
+                  </Popover>
 
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className={cn("flex-1 justify-start text-left text-xs rounded-lg h-10", !dateTo && "text-muted-foreground")}>
-                      <CalendarIcon size={12} className="mr-1.5" />
-                      {dateTo ? format(dateTo, 'MMM dd, yyyy') : 'To date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className={cn("p-3 pointer-events-auto")} />
-                  </PopoverContent>
-                </Popover>
-              </div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("flex-1 justify-start text-left text-xs rounded-lg h-10", !dateTo && "text-muted-foreground")}>
+                        <CalendarIcon size={12} className="mr-1.5" />
+                        {dateTo ? format(dateTo, 'MMM dd, yyyy') : 'To date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
 
               {hasActiveFilters && (
                 <button onClick={clearFilters} className="text-xs text-primary font-medium flex items-center gap-1">
@@ -312,11 +421,58 @@ const Expenses = () => {
                 </button>
               )}
 
-              <p className="text-xs text-muted-foreground">{filtered.length} transaction{filtered.length !== 1 ? 's' : ''} found</p>
+              <div className="flex items-center justify-between pt-1 border-t border-border">
+                <p className="text-xs text-muted-foreground">{filtered.length} record{filtered.length !== 1 ? 's' : ''}</p>
+                <p className="text-xs font-medium">Net: <span className={filteredIncome - filteredExpense >= 0 ? 'text-success' : 'text-destructive'}>{formatTZS(filteredIncome - filteredExpense)} TZS</span></p>
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* AI Advice based on filtered records */}
+      {hasActiveFilters && filtered.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl gradient-primary p-4 shadow-elevated">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-bold font-display text-primary-foreground flex items-center gap-1.5">
+              <Brain size={14} /> Advice for {periodLabel}{categoryFilter !== 'all' ? ` · ${categoryFilter}` : ''}
+            </h3>
+            <button onClick={getAdvice} disabled={adviceLoading} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary-foreground/15 text-[10px] font-medium text-primary-foreground disabled:opacity-50">
+              {adviceLoading ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+              {advice ? 'Regenerate' : 'Generate'}
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            <div className="bg-primary-foreground/10 rounded-lg p-2">
+              <p className="text-[9px] text-primary-foreground/70">Income</p>
+              <p className="text-xs font-bold text-primary-foreground">{formatTZS(filteredIncome)}</p>
+            </div>
+            <div className="bg-primary-foreground/10 rounded-lg p-2">
+              <p className="text-[9px] text-primary-foreground/70">Expenses</p>
+              <p className="text-xs font-bold text-primary-foreground">{formatTZS(filteredExpense)}</p>
+            </div>
+            <div className="bg-primary-foreground/10 rounded-lg p-2">
+              <p className="text-[9px] text-primary-foreground/70">Top</p>
+              <p className="text-xs font-bold text-primary-foreground truncate">{topCategory ? topCategory[0] : '—'}</p>
+            </div>
+          </div>
+          {advice ? (
+            <div className="text-[11px] leading-relaxed text-primary-foreground/95 whitespace-pre-wrap">
+              {advice.split('\n').map((line, i) => (
+                <p key={i} className={i > 0 ? 'mt-1' : ''}>
+                  {line.split(/(\*\*.*?\*\*)/).map((part, j) =>
+                    part.startsWith('**') && part.endsWith('**')
+                      ? <strong key={j}>{part.slice(2, -2)}</strong>
+                      : part
+                  )}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[11px] text-primary-foreground/70">Tap Generate to get personalised advice based on these filtered records.</p>
+          )}
+        </motion.div>
+      )}
 
       {filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">No transactions yet</p>
