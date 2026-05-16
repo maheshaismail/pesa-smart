@@ -47,6 +47,10 @@ const Expenses = () => {
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
   const [showFilters, setShowFilters] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [period, setPeriod] = useState<'all' | 'week' | 'month' | '3months' | '6months' | 'year' | 'custom'>('all');
+  const [advice, setAdvice] = useState<string>('');
+  const [adviceLoading, setAdviceLoading] = useState(false);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['transactions'] });
 
