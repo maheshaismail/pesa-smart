@@ -346,6 +346,34 @@ Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${forma
         {showFilters && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
             <div className="space-y-2.5 rounded-xl bg-card p-3 shadow-card">
+              {/* Period quick presets */}
+              <div>
+                <p className="text-[10px] font-medium text-muted-foreground mb-1.5">Period</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {([
+                    ['all', 'All'], ['week', 'Week'], ['month', 'Month'],
+                    ['3months', '3 Months'], ['6months', '6 Months'], ['year', 'Year'], ['custom', 'Custom'],
+                  ] as const).map(([key, label]) => (
+                    <button key={key} onClick={() => setPeriod(key)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${period === key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Category */}
+              <div>
+                <p className="text-[10px] font-medium text-muted-foreground mb-1.5">Category</p>
+                <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                  <option value="all">All categories</option>
+                  {['Food', 'Transport', 'Rent', 'Utilities', 'Entertainment', 'Education', 'Business', 'Salary', 'Freelance', 'Other'].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Search */}
               <div className="relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -358,32 +386,34 @@ Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${forma
                 />
               </div>
 
-              {/* Date range */}
-              <div className="flex gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className={cn("flex-1 justify-start text-left text-xs rounded-lg h-10", !dateFrom && "text-muted-foreground")}>
-                      <CalendarIcon size={12} className="mr-1.5" />
-                      {dateFrom ? format(dateFrom, 'MMM dd, yyyy') : 'From date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
-                  </PopoverContent>
-                </Popover>
+              {/* Custom Date range (only when period === 'custom') */}
+              {period === 'custom' && (
+                <div className="flex gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("flex-1 justify-start text-left text-xs rounded-lg h-10", !dateFrom && "text-muted-foreground")}>
+                        <CalendarIcon size={12} className="mr-1.5" />
+                        {dateFrom ? format(dateFrom, 'MMM dd, yyyy') : 'From date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+                    </PopoverContent>
+                  </Popover>
 
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className={cn("flex-1 justify-start text-left text-xs rounded-lg h-10", !dateTo && "text-muted-foreground")}>
-                      <CalendarIcon size={12} className="mr-1.5" />
-                      {dateTo ? format(dateTo, 'MMM dd, yyyy') : 'To date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className={cn("p-3 pointer-events-auto")} />
-                  </PopoverContent>
-                </Popover>
-              </div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("flex-1 justify-start text-left text-xs rounded-lg h-10", !dateTo && "text-muted-foreground")}>
+                        <CalendarIcon size={12} className="mr-1.5" />
+                        {dateTo ? format(dateTo, 'MMM dd, yyyy') : 'To date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
 
               {hasActiveFilters && (
                 <button onClick={clearFilters} className="text-xs text-primary font-medium flex items-center gap-1">
@@ -391,11 +421,58 @@ Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${forma
                 </button>
               )}
 
-              <p className="text-xs text-muted-foreground">{filtered.length} transaction{filtered.length !== 1 ? 's' : ''} found</p>
+              <div className="flex items-center justify-between pt-1 border-t border-border">
+                <p className="text-xs text-muted-foreground">{filtered.length} record{filtered.length !== 1 ? 's' : ''}</p>
+                <p className="text-xs font-medium">Net: <span className={filteredIncome - filteredExpense >= 0 ? 'text-success' : 'text-destructive'}>{formatTZS(filteredIncome - filteredExpense)} TZS</span></p>
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* AI Advice based on filtered records */}
+      {hasActiveFilters && filtered.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl gradient-primary p-4 shadow-elevated">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-bold font-display text-primary-foreground flex items-center gap-1.5">
+              <Brain size={14} /> Advice for {periodLabel}{categoryFilter !== 'all' ? ` · ${categoryFilter}` : ''}
+            </h3>
+            <button onClick={getAdvice} disabled={adviceLoading} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary-foreground/15 text-[10px] font-medium text-primary-foreground disabled:opacity-50">
+              {adviceLoading ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+              {advice ? 'Regenerate' : 'Generate'}
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            <div className="bg-primary-foreground/10 rounded-lg p-2">
+              <p className="text-[9px] text-primary-foreground/70">Income</p>
+              <p className="text-xs font-bold text-primary-foreground">{formatTZS(filteredIncome)}</p>
+            </div>
+            <div className="bg-primary-foreground/10 rounded-lg p-2">
+              <p className="text-[9px] text-primary-foreground/70">Expenses</p>
+              <p className="text-xs font-bold text-primary-foreground">{formatTZS(filteredExpense)}</p>
+            </div>
+            <div className="bg-primary-foreground/10 rounded-lg p-2">
+              <p className="text-[9px] text-primary-foreground/70">Top</p>
+              <p className="text-xs font-bold text-primary-foreground truncate">{topCategory ? topCategory[0] : '—'}</p>
+            </div>
+          </div>
+          {advice ? (
+            <div className="text-[11px] leading-relaxed text-primary-foreground/95 whitespace-pre-wrap">
+              {advice.split('\n').map((line, i) => (
+                <p key={i} className={i > 0 ? 'mt-1' : ''}>
+                  {line.split(/(\*\*.*?\*\*)/).map((part, j) =>
+                    part.startsWith('**') && part.endsWith('**')
+                      ? <strong key={j}>{part.slice(2, -2)}</strong>
+                      : part
+                  )}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[11px] text-primary-foreground/70">Tap Generate to get personalised advice based on these filtered records.</p>
+          )}
+        </motion.div>
+      )}
 
       {filtered.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">No transactions yet</p>
