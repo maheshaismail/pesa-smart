@@ -589,23 +589,81 @@ Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${forma
                 </>
               )}
 
-              <div className="flex gap-2 mb-4">
-                {(['expense', 'income'] as const).map(tp => (
-                  <button key={tp} onClick={() => setNewTx(p => ({ ...p, type: tp, category: tp === 'income' ? 'Income' : (p.category === 'Income' ? 'Food' : p.category) }))} className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${newTx.type === tp ? (tp === 'expense' ? 'bg-destructive text-destructive-foreground' : 'bg-success text-success-foreground') : 'bg-muted text-muted-foreground'}`}>
-                    {tp === 'expense' ? t('dash.expenses') : t('dash.income')}
-                  </button>
-                ))}
-              </div>
               <div className="space-y-3">
-                <input type="number" placeholder={t('exp.amount') + ' (TZS)'} value={newTx.amount} onChange={e => setNewTx(p => ({ ...p, amount: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                {/* Type toggle */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setNewTx(p => ({ ...p, type: 'expense', category: p.category === 'Income' ? 'Food' : p.category }))}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${newTx.type === 'expense' ? 'bg-destructive text-destructive-foreground' : 'bg-muted text-muted-foreground'}`}
+                  >
+                    {t('dash.type.expense')}
+                  </button>
+                  <button
+                    onClick={() => setNewTx(p => ({ ...p, type: 'income', category: 'Income' }))}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${newTx.type === 'income' ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground'}`}
+                  >
+                    {t('dash.type.income')}
+                  </button>
+                </div>
+
+                {/* Quick amounts */}
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1.5 block">{t('dash.quick.amount')}</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {[1000, 2000, 5000, 10000, 20000, 50000].map(amt => (
+                      <button
+                        key={amt}
+                        onClick={() => setNewTx(p => ({ ...p, amount: String(amt) }))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          newTx.amount === String(amt) ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {formatTZS(amt)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom amount */}
+                <input
+                  type="number"
+                  placeholder={t('dash.quick.custom')}
+                  value={newTx.amount}
+                  onChange={e => setNewTx(p => ({ ...p, amount: e.target.value }))}
+                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+
+                {/* Category chips — only for expense */}
                 {newTx.type === 'expense' && (
-                  <select value={newTx.category} onChange={e => setNewTx(p => ({ ...p, category: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-                    {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                  </select>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1.5 block">{t('exp.category')}</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {categories.map(cat => (
+                        <button
+                          key={cat}
+                          onClick={() => setNewTx(p => ({ ...p, category: cat }))}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            newTx.category === cat ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
-                <input type="text" placeholder={t('exp.description')} value={newTx.description} onChange={e => setNewTx(p => ({ ...p, description: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                <Button onClick={handleSubmit} disabled={isSaving} className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3">
-                  {isSaving ? 'Saving...' : editingTx ? 'Update' : t('gen.save')}
+
+                {/* Description */}
+                <input
+                  type="text"
+                  placeholder={t('exp.description')}
+                  value={newTx.description}
+                  onChange={e => setNewTx(p => ({ ...p, description: e.target.value }))}
+                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+
+                <Button onClick={handleSubmit} disabled={isSaving || !newTx.amount} className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3">
+                  {isSaving ? 'Saving...' : editingTx ? 'Update' : `${t('dash.quick.add')} ${newTx.type === 'income' ? t('dash.type.income') : t('dash.type.expense')}${newTx.amount ? ' — ' + formatTZS(parseInt(newTx.amount)) + ' TZS' : ''}`}
                 </Button>
               </div>
             </motion.div>
