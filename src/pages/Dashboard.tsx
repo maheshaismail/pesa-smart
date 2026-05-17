@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
-import { fetchTransactions, addTransaction, formatTZS, getFinancialSummary, type Transaction } from '@/lib/api';
+import { fetchTransactions, addTransaction, fetchBudgetCategories, formatTZS, getFinancialSummary, type Transaction } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, TrendingDown, Wallet, Heart, Lightbulb, ArrowUpRight, ArrowDownRight, Plus, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Heart, Lightbulb, ArrowUpRight, ArrowDownRight, Plus, X, Target } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
@@ -29,6 +29,10 @@ const Dashboard = () => {
   const { data: transactions = [] } = useQuery({
     queryKey: ['transactions'],
     queryFn: fetchTransactions,
+  });
+  const { data: budgets = [] } = useQuery({
+    queryKey: ['budgets'],
+    queryFn: fetchBudgetCategories,
   });
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [quickTx, setQuickTx] = useState({ amount: '', category: 'Food', description: '', type: 'expense' as 'income' | 'expense' });
@@ -83,6 +87,11 @@ const Dashboard = () => {
   const summary = getFinancialSummary(transactions);
   const name = user?.user_metadata?.full_name || 'there';
 
+  // Allocated monthly general budget — balance is computed as budget minus expenses
+  const monthlyBudget = budgets.find(b => b.category === 'General' && (b.period || 'monthly') === 'monthly');
+  const allocatedBudget = monthlyBudget ? Number(monthlyBudget.monthly_limit) : 0;
+  const budgetRemaining = allocatedBudget - summary.expenses;
+
   const monthlyMap = new Map<string, { income: number; expenses: number }>();
   transactions.forEach(tx => {
     const d = new Date(tx.transaction_date);
@@ -117,8 +126,13 @@ const Dashboard = () => {
         <div>
           <p className="text-muted-foreground text-sm">{t('dash.greeting')}, {name} 👋</p>
           <h1 className="text-2xl font-bold font-display">{t('dash.balance')}</h1>
-          <p className="text-3xl font-bold font-display text-primary mt-1">
-            {formatTZS(summary.balance)} <span className="text-sm font-normal text-muted-foreground">TZS</span>
+          <p className={`text-3xl font-bold font-display mt-1 ${budgetRemaining < 0 ? 'text-destructive' : 'text-primary'}`}>
+            {formatTZS(budgetRemaining)} <span className="text-sm font-normal text-muted-foreground">TZS</span>
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            {allocatedBudget > 0
+              ? `Budget ${formatTZS(allocatedBudget)} − Expenses ${formatTZS(summary.expenses)}`
+              : 'No budget set — visit Budget to allocate'}
           </p>
         </div>
         <Button onClick={() => setShowQuickAdd(true)} size="sm" className="gap-1.5 gradient-primary border-0 text-primary-foreground rounded-xl mt-1">
@@ -126,7 +140,7 @@ const Dashboard = () => {
         </Button>
       </motion.div>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show" custom={1} className="grid grid-cols-3 gap-3">
+      <motion.div variants={fadeUp} initial="hidden" animate="show" custom={1} className="grid grid-cols-2 gap-3">
         <div className="rounded-xl bg-card p-3 shadow-card">
           <div className="flex items-center gap-1.5 text-success mb-1">
             <TrendingUp size={14} />
@@ -142,11 +156,18 @@ const Dashboard = () => {
           <p className="text-sm font-bold font-display">{formatTZS(summary.expenses)}</p>
         </div>
         <div className="rounded-xl bg-card p-3 shadow-card">
+          <div className="flex items-center gap-1.5 text-primary mb-1">
+            <Target size={14} />
+            <span className="text-xs font-medium">Allocated Budget</span>
+          </div>
+          <p className="text-sm font-bold font-display">{formatTZS(allocatedBudget)}</p>
+        </div>
+        <div className="rounded-xl bg-card p-3 shadow-card">
           <div className="flex items-center gap-1.5 text-secondary mb-1">
             <Wallet size={14} />
             <span className="text-xs font-medium">{t('dash.savings')}</span>
           </div>
-          <p className="text-sm font-bold font-display">{formatTZS(Math.max(0, summary.balance))}</p>
+          <p className="text-sm font-bold font-display">{formatTZS(Math.max(0, budgetRemaining))}</p>
         </div>
       </motion.div>
 
