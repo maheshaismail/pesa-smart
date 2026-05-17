@@ -241,19 +241,18 @@ Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${forma
     if (!newTx.amount) return;
     const category = newTx.type === 'income' ? 'Income' : newTx.category;
     const description = newTx.description || category;
-    // override below
-    newTx.description = description;
+    const payload = { amount: parseInt(newTx.amount), type: newTx.type, category, description };
     if (editingTx) {
-      editMutation.mutate({ id: editingTx.id, amount: parseInt(newTx.amount), type: newTx.type, category, description: newTx.description });
+      editMutation.mutate({ id: editingTx.id, ...payload });
       return;
     }
     if (!isOnline()) {
-      await saveOfflineTransaction({ amount: parseInt(newTx.amount), type: newTx.type, category, description: newTx.description, transaction_date: new Date().toISOString().split('T')[0] });
+      await saveOfflineTransaction({ ...payload, transaction_date: new Date().toISOString().split('T')[0] });
       resetForm();
       toast.success('Saved offline! Will sync when back online.', { icon: '📴' });
       return;
     }
-    addMutation.mutate({ amount: parseInt(newTx.amount), type: newTx.type, category, description: newTx.description });
+    addMutation.mutate(payload);
   };
 
   const isSaving = addMutation.isPending || editMutation.isPending;
