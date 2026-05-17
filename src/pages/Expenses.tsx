@@ -125,7 +125,8 @@ const Expenses = () => {
       if (error) throw error;
       const parsed = data?.transactions?.[0];
       if (!parsed) { toast.error('Could not parse SMS. Try entering details manually.'); return; }
-      setNewTx({ amount: String(parsed.amount || ''), category: parsed.category || 'Other', description: parsed.description || smsText.trim().slice(0, 50), type: parsed.type || 'expense' });
+      const parsedType = parsed.type || 'expense';
+      setNewTx({ amount: String(parsed.amount || ''), category: parsedType === 'income' ? 'Income' : (parsed.category || 'Other'), description: parsed.description || smsText.trim().slice(0, 50), type: parsedType });
       setSmsMode(false);
       toast.success('SMS parsed! Review and save.');
     } catch (e: any) { toast.error(e.message || 'Failed to parse SMS'); }
