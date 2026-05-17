@@ -87,6 +87,11 @@ const Dashboard = () => {
   const summary = getFinancialSummary(transactions);
   const name = user?.user_metadata?.full_name || 'there';
 
+  // Allocated monthly general budget — balance is computed as budget minus expenses
+  const monthlyBudget = budgets.find(b => b.category === 'General' && (b.period || 'monthly') === 'monthly');
+  const allocatedBudget = monthlyBudget ? Number(monthlyBudget.monthly_limit) : 0;
+  const budgetRemaining = allocatedBudget - summary.expenses;
+
   const monthlyMap = new Map<string, { income: number; expenses: number }>();
   transactions.forEach(tx => {
     const d = new Date(tx.transaction_date);
