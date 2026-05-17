@@ -238,8 +238,11 @@ Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${forma
   };
 
   const handleSubmit = async () => {
-    if (!newTx.amount || !newTx.description) return;
+    if (!newTx.amount) return;
     const category = newTx.type === 'income' ? 'Income' : newTx.category;
+    const description = newTx.description || category;
+    // override below
+    newTx.description = description;
     if (editingTx) {
       editMutation.mutate({ id: editingTx.id, amount: parseInt(newTx.amount), type: newTx.type, category, description: newTx.description });
       return;
