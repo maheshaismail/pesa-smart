@@ -589,16 +589,18 @@ Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${forma
 
               <div className="flex gap-2 mb-4">
                 {(['expense', 'income'] as const).map(tp => (
-                  <button key={tp} onClick={() => setNewTx(p => ({ ...p, type: tp }))} className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${newTx.type === tp ? (tp === 'expense' ? 'bg-destructive text-destructive-foreground' : 'bg-success text-success-foreground') : 'bg-muted text-muted-foreground'}`}>
+                  <button key={tp} onClick={() => setNewTx(p => ({ ...p, type: tp, category: tp === 'income' ? 'Income' : (p.category === 'Income' ? 'Food' : p.category) }))} className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${newTx.type === tp ? (tp === 'expense' ? 'bg-destructive text-destructive-foreground' : 'bg-success text-success-foreground') : 'bg-muted text-muted-foreground'}`}>
                     {tp === 'expense' ? t('dash.expenses') : t('dash.income')}
                   </button>
                 ))}
               </div>
               <div className="space-y-3">
                 <input type="number" placeholder={t('exp.amount') + ' (TZS)'} value={newTx.amount} onChange={e => setNewTx(p => ({ ...p, amount: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                <select value={newTx.category} onChange={e => setNewTx(p => ({ ...p, category: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-                  {(newTx.type === 'income' ? ['Salary', 'Freelance', 'Business', 'Other'] : categories).map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
+                {newTx.type === 'expense' && (
+                  <select value={newTx.category} onChange={e => setNewTx(p => ({ ...p, category: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                    {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                  </select>
+                )}
                 <input type="text" placeholder={t('exp.description')} value={newTx.description} onChange={e => setNewTx(p => ({ ...p, description: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 <Button onClick={handleSubmit} disabled={isSaving} className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3">
                   {isSaving ? 'Saving...' : editingTx ? 'Update' : t('gen.save')}
