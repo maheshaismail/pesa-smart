@@ -239,17 +239,18 @@ Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${forma
 
   const handleSubmit = async () => {
     if (!newTx.amount || !newTx.description) return;
+    const category = newTx.type === 'income' ? 'Income' : newTx.category;
     if (editingTx) {
-      editMutation.mutate({ id: editingTx.id, amount: parseInt(newTx.amount), type: newTx.type, category: newTx.category, description: newTx.description });
+      editMutation.mutate({ id: editingTx.id, amount: parseInt(newTx.amount), type: newTx.type, category, description: newTx.description });
       return;
     }
     if (!isOnline()) {
-      await saveOfflineTransaction({ amount: parseInt(newTx.amount), type: newTx.type, category: newTx.category, description: newTx.description, transaction_date: new Date().toISOString().split('T')[0] });
+      await saveOfflineTransaction({ amount: parseInt(newTx.amount), type: newTx.type, category, description: newTx.description, transaction_date: new Date().toISOString().split('T')[0] });
       resetForm();
       toast.success('Saved offline! Will sync when back online.', { icon: '📴' });
       return;
     }
-    addMutation.mutate({ amount: parseInt(newTx.amount), type: newTx.type, category: newTx.category, description: newTx.description });
+    addMutation.mutate({ amount: parseInt(newTx.amount), type: newTx.type, category, description: newTx.description });
   };
 
   const isSaving = addMutation.isPending || editMutation.isPending;
