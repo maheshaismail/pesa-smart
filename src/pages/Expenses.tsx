@@ -125,7 +125,8 @@ const Expenses = () => {
       if (error) throw error;
       const parsed = data?.transactions?.[0];
       if (!parsed) { toast.error('Could not parse SMS. Try entering details manually.'); return; }
-      setNewTx({ amount: String(parsed.amount || ''), category: parsed.category || 'Other', description: parsed.description || smsText.trim().slice(0, 50), type: parsed.type || 'expense' });
+      const parsedType = parsed.type || 'expense';
+      setNewTx({ amount: String(parsed.amount || ''), category: parsedType === 'income' ? 'Income' : (parsed.category || 'Other'), description: parsed.description || smsText.trim().slice(0, 50), type: parsedType });
       setSmsMode(false);
       toast.success('SMS parsed! Review and save.');
     } catch (e: any) { toast.error(e.message || 'Failed to parse SMS'); }
@@ -238,17 +239,18 @@ Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${forma
 
   const handleSubmit = async () => {
     if (!newTx.amount || !newTx.description) return;
+    const category = newTx.type === 'income' ? 'Income' : newTx.category;
     if (editingTx) {
-      editMutation.mutate({ id: editingTx.id, amount: parseInt(newTx.amount), type: newTx.type, category: newTx.category, description: newTx.description });
+      editMutation.mutate({ id: editingTx.id, amount: parseInt(newTx.amount), type: newTx.type, category, description: newTx.description });
       return;
     }
     if (!isOnline()) {
-      await saveOfflineTransaction({ amount: parseInt(newTx.amount), type: newTx.type, category: newTx.category, description: newTx.description, transaction_date: new Date().toISOString().split('T')[0] });
+      await saveOfflineTransaction({ amount: parseInt(newTx.amount), type: newTx.type, category, description: newTx.description, transaction_date: new Date().toISOString().split('T')[0] });
       resetForm();
       toast.success('Saved offline! Will sync when back online.', { icon: '📴' });
       return;
     }
-    addMutation.mutate({ amount: parseInt(newTx.amount), type: newTx.type, category: newTx.category, description: newTx.description });
+    addMutation.mutate({ amount: parseInt(newTx.amount), type: newTx.type, category, description: newTx.description });
   };
 
   const isSaving = addMutation.isPending || editMutation.isPending;
@@ -589,16 +591,18 @@ Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${forma
 
               <div className="flex gap-2 mb-4">
                 {(['expense', 'income'] as const).map(tp => (
-                  <button key={tp} onClick={() => setNewTx(p => ({ ...p, type: tp }))} className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${newTx.type === tp ? (tp === 'expense' ? 'bg-destructive text-destructive-foreground' : 'bg-success text-success-foreground') : 'bg-muted text-muted-foreground'}`}>
+                  <button key={tp} onClick={() => setNewTx(p => ({ ...p, type: tp, category: tp === 'income' ? 'Income' : (p.category === 'Income' ? 'Food' : p.category) }))} className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${newTx.type === tp ? (tp === 'expense' ? 'bg-destructive text-destructive-foreground' : 'bg-success text-success-foreground') : 'bg-muted text-muted-foreground'}`}>
                     {tp === 'expense' ? t('dash.expenses') : t('dash.income')}
                   </button>
                 ))}
               </div>
               <div className="space-y-3">
                 <input type="number" placeholder={t('exp.amount') + ' (TZS)'} value={newTx.amount} onChange={e => setNewTx(p => ({ ...p, amount: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-                <select value={newTx.category} onChange={e => setNewTx(p => ({ ...p, category: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-                  {(newTx.type === 'income' ? ['Salary', 'Freelance', 'Business', 'Other'] : categories).map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
+                {newTx.type === 'expense' && (
+                  <select value={newTx.category} onChange={e => setNewTx(p => ({ ...p, category: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                    {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                  </select>
+                )}
                 <input type="text" placeholder={t('exp.description')} value={newTx.description} onChange={e => setNewTx(p => ({ ...p, description: e.target.value }))} className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 <Button onClick={handleSubmit} disabled={isSaving} className="w-full gradient-primary border-0 text-primary-foreground rounded-xl py-3">
                   {isSaving ? 'Saving...' : editingTx ? 'Update' : t('gen.save')}
