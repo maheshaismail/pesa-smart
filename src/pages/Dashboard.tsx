@@ -30,6 +30,10 @@ const Dashboard = () => {
     queryKey: ['transactions'],
     queryFn: fetchTransactions,
   });
+  const { data: budgets = [] } = useQuery({
+    queryKey: ['budgets'],
+    queryFn: fetchBudgetCategories,
+  });
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [quickTx, setQuickTx] = useState({ amount: '', category: 'Food', description: '', type: 'expense' as 'income' | 'expense' });
 
