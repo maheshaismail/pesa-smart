@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
-import { fetchTransactions, addTransaction, formatTZS, getFinancialSummary, type Transaction } from '@/lib/api';
+import { fetchTransactions, addTransaction, fetchBudgetCategories, formatTZS, getFinancialSummary, type Transaction } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, TrendingDown, Wallet, Heart, Lightbulb, ArrowUpRight, ArrowDownRight, Plus, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Heart, Lightbulb, ArrowUpRight, ArrowDownRight, Plus, X, Target } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
