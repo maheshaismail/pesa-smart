@@ -7,6 +7,7 @@ import { Globe, LogOut, WifiOff } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { NotificationBell, NotificationPanel, useSmartNotifications } from '@/components/SmartNotifications';
 import InstallPrompt from '@/components/InstallPrompt';
+import FloatingAdvisor from '@/components/FloatingAdvisor';
 
 const AppLayout = () => {
   const { lang, setLang, t } = useI18n();
@@ -81,6 +82,7 @@ const AppLayout = () => {
         <Outlet />
       </main>
       <BottomNav />
+      <FloatingAdvisor />
       <InstallPrompt />
     </div>
   );
