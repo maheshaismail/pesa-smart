@@ -50,12 +50,13 @@ const Dashboard = () => {
 
   const handleQuickSubmit = async () => {
     if (!quickTx.amount) return;
+    const category = quickTx.type === 'income' ? 'Income' : quickTx.category;
     if (!isOnline()) {
       await saveOfflineTransaction({
         amount: parseInt(quickTx.amount),
         type: quickTx.type,
-        category: quickTx.category,
-        description: quickTx.description || quickTx.category,
+        category,
+        description: quickTx.description || category,
         transaction_date: new Date().toISOString().split('T')[0],
       });
       setShowQuickAdd(false);
