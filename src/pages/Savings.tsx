@@ -141,6 +141,8 @@ const Savings = () => {
         </Button>
       </div>
 
+      <PersonalFinanceAdvice variant="savings" />
+
       {goals.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">No savings goals yet. Create one to start saving!</p>
       ) : (
