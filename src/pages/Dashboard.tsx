@@ -64,7 +64,6 @@ const Dashboard = () => {
       toast.success('Saved offline! Will sync when back online.', { icon: '📴' });
       return;
     }
-    const category = quickTx.type === 'income' ? 'Income' : quickTx.category;
     addMutation.mutate({
       amount: parseInt(quickTx.amount),
       type: quickTx.type,
