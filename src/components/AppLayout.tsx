@@ -82,6 +82,7 @@ const AppLayout = () => {
         <Outlet />
       </main>
       <BottomNav />
+      <FloatingAdvisor />
       <InstallPrompt />
     </div>
   );
