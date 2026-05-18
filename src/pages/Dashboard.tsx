@@ -307,22 +307,24 @@ const Dashboard = () => {
                 />
 
                 {/* Category chips */}
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1.5 block">{t('exp.category')}</label>
-                  <div className="flex gap-2 flex-wrap">
-                    {categories.map(cat => (
-                      <button
-                        key={cat}
-                        onClick={() => setQuickTx(p => ({ ...p, category: cat }))}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                          quickTx.category === cat ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
+                {quickTx.type === 'expense' && (
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1.5 block">{t('exp.category')}</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {categories.filter(c => !['Salary', 'Freelance'].includes(c)).map(cat => (
+                        <button
+                          key={cat}
+                          onClick={() => setQuickTx(p => ({ ...p, category: cat }))}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            quickTx.category === cat ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Description */}
                 <input
