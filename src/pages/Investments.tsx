@@ -4,6 +4,7 @@ import { formatTZS } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, Calculator, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import PersonalFinanceAdvice from '@/components/PersonalFinanceAdvice';
 
 interface Investment {
   name: string;
@@ -58,6 +59,8 @@ const Investments = () => {
   return (
     <div className="space-y-5 pb-24 pt-2">
       <h1 className="text-xl font-bold font-display">{t('inv.title')}</h1>
+
+      <PersonalFinanceAdvice variant="investments" />
 
       {/* Simulator Input */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl bg-card p-4 shadow-card space-y-3">

@@ -4,6 +4,7 @@ import { fetchSavingsGoals, addSavingsGoal, updateSavingsGoal, formatTZS } from 
 import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, Pencil, Trash2, PiggyBank, Minus } from 'lucide-react';
+import PersonalFinanceAdvice from '@/components/PersonalFinanceAdvice';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -139,6 +140,8 @@ const Savings = () => {
           <Plus size={16} /> {t('sav.add')}
         </Button>
       </div>
+
+      <PersonalFinanceAdvice variant="savings" />
 
       {goals.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">No savings goals yet. Create one to start saving!</p>
