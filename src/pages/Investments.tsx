@@ -60,6 +60,8 @@ const Investments = () => {
     <div className="space-y-5 pb-24 pt-2">
       <h1 className="text-xl font-bold font-display">{t('inv.title')}</h1>
 
+      <PersonalFinanceAdvice variant="investments" />
+
       {/* Simulator Input */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl bg-card p-4 shadow-card space-y-3">
         <h3 className="text-sm font-semibold font-display flex items-center gap-1.5"><Calculator size={14} className="text-primary" /> {t('inv.simulator')}</h3>
