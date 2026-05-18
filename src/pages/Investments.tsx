@@ -4,6 +4,7 @@ import { formatTZS } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, Calculator, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import PersonalFinanceAdvice from '@/components/PersonalFinanceAdvice';
 
 interface Investment {
   name: string;
