@@ -241,7 +241,13 @@ Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${forma
   const handleSubmit = async () => {
     if (!newTx.amount) return;
     const category = newTx.type === 'income' ? 'Income' : newTx.category;
-    const description = newTx.description || category;
+    const freqLabel = newTx.type === 'income'
+      ? (incomeFrequency === 'daily' ? 'Daily' : incomeFrequency === 'weekly' ? 'Weekly' : 'Monthly')
+      : '';
+    const baseDesc = newTx.description || category;
+    const description = newTx.type === 'income'
+      ? (newTx.description ? `${baseDesc} (${freqLabel})` : `${freqLabel} income`)
+      : baseDesc;
     const payload = { amount: parseInt(newTx.amount), type: newTx.type, category, description };
     if (editingTx) {
       editMutation.mutate({ id: editingTx.id, ...payload });
