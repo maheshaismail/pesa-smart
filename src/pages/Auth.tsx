@@ -57,7 +57,8 @@ const Auth = () => {
       if (error) {
         toast.error(error.message);
       } else {
-        toast.success(t('auth.checkEmail'));
+        toast.success('Account created — signed in!');
+        navigate('/');
       }
     }
     setLoading(false);

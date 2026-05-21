@@ -43,14 +43,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo: getSiteUrl(),
       },
     });
+
+    // If signup didn't produce an authenticated session, try signing in immediately.
+    // This allows users to be logged in right after creating an account when
+    // the Supabase project isn't configured to force email confirmations.
+    if (!error && !data.session) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      return { error: signInError ?? null };
+    }
+
     return { error };
   };
 
