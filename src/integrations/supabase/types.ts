@@ -89,6 +89,89 @@ export type Database = {
         }
         Relationships: []
       }
+      budget_plan_items: {
+        Row: {
+          amount: number
+          created_at: string
+          icon: string | null
+          id: string
+          is_done: boolean
+          label: string
+          percent: number
+          plan_id: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_done?: boolean
+          label: string
+          percent?: number
+          plan_id: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_done?: boolean
+          label?: string
+          percent?: number
+          plan_id?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_plan_items_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "budget_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budget_plans: {
+        Row: {
+          created_at: string
+          id: string
+          income: number
+          name: string
+          period: string
+          total_allocated: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          income?: number
+          name: string
+          period?: string
+          total_allocated?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          income?: number
+          name?: string
+          period?: string
+          total_allocated?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
