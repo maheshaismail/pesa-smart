@@ -35,6 +35,7 @@ const Expenses = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [newTx, setNewTx] = useState({ amount: '', category: 'Food', description: '', type: 'expense' as 'income' | 'expense' });
+  const [incomeFrequency, setIncomeFrequency] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
   const [smsText, setSmsText] = useState('');
   const [smsMode, setSmsMode] = useState(false);
   const [parsing, setParsing] = useState(false);
