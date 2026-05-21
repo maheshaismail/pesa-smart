@@ -615,6 +615,26 @@ Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${forma
                   </button>
                 </div>
 
+                {/* Income frequency */}
+                {newTx.type === 'income' && (
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1.5 block">Frequency</label>
+                    <div className="flex gap-2">
+                      {(['daily', 'weekly', 'monthly'] as const).map(f => (
+                        <button
+                          key={f}
+                          onClick={() => setIncomeFrequency(f)}
+                          className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
+                            incomeFrequency === f ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Quick amounts */}
                 <div>
                   <label className="text-xs text-muted-foreground mb-1.5 block">{t('dash.quick.amount')}</label>
