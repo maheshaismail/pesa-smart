@@ -251,6 +251,9 @@ const Budget = () => {
           </p>
         </motion.div>
       )}
+      {/* Budget plan generator */}
+      <BudgetPlanGenerator income={periodIncome} period={activeTab} />
+
 
       {/* Set/Edit Modal */}
       <AnimatePresence>
