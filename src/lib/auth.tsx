@@ -52,11 +52,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     // If signup didn't produce an authenticated session, try signing in immediately.
-    // This allows users to be logged in right after creating an account when
-    // the Supabase project isn't configured to force email confirmations.
+    // Supabase can rate-limit immediate sign-in attempts after signUp with a
+    // message like "For security purposes, you can only request this after 53 seconds.".
+    // Retry intelligently: parse the wait time from the error message and retry.
     if (!error && !data.session) {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      return { error: signInError ?? null };
+      const maxRetries = 3;
+      let attempt = 0;
+      let lastError: any = null;
+
+      while (attempt < maxRetries) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (!signInError) {
+          lastError = null;
+          break;
+        }
+
+        lastError = signInError;
+        const msg: string = (signInError?.message || '').toString();
+        const m = msg.match(/after\s+(\d+)\s*seconds?/i);
+        if (m && m[1]) {
+          const waitMs = parseInt(m[1], 10) * 1000 + 1000;
+          // wait then retry
+          await new Promise((r) => setTimeout(r, waitMs));
+          attempt += 1;
+          continue;
+        }
+
+        // If error isn't the rate-limit message, stop retrying
+        break;
+      }
+
+      return { error: lastError ?? null };
     }
 
     return { error };
