@@ -35,6 +35,7 @@ const Expenses = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [newTx, setNewTx] = useState({ amount: '', category: 'Food', description: '', type: 'expense' as 'income' | 'expense' });
+  const [incomeFrequency, setIncomeFrequency] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
   const [smsText, setSmsText] = useState('');
   const [smsMode, setSmsMode] = useState(false);
   const [parsing, setParsing] = useState(false);
@@ -240,7 +241,13 @@ Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${forma
   const handleSubmit = async () => {
     if (!newTx.amount) return;
     const category = newTx.type === 'income' ? 'Income' : newTx.category;
-    const description = newTx.description || category;
+    const freqLabel = newTx.type === 'income'
+      ? (incomeFrequency === 'daily' ? 'Daily' : incomeFrequency === 'weekly' ? 'Weekly' : 'Monthly')
+      : '';
+    const baseDesc = newTx.description || category;
+    const description = newTx.type === 'income'
+      ? (newTx.description ? `${baseDesc} (${freqLabel})` : `${freqLabel} income`)
+      : baseDesc;
     const payload = { amount: parseInt(newTx.amount), type: newTx.type, category, description };
     if (editingTx) {
       editMutation.mutate({ id: editingTx.id, ...payload });
@@ -607,6 +614,26 @@ Breakdown: ${Object.entries(filteredCatBreakdown).map(([k, v]) => `${k}: ${forma
                     {t('dash.type.income')}
                   </button>
                 </div>
+
+                {/* Income frequency */}
+                {newTx.type === 'income' && (
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1.5 block">Frequency</label>
+                    <div className="flex gap-2">
+                      {(['daily', 'weekly', 'monthly'] as const).map(f => (
+                        <button
+                          key={f}
+                          onClick={() => setIncomeFrequency(f)}
+                          className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
+                            incomeFrequency === f ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Quick amounts */}
                 <div>

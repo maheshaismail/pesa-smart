@@ -36,6 +36,7 @@ const Dashboard = () => {
   });
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [quickTx, setQuickTx] = useState({ amount: '', category: 'Food', description: '', type: 'expense' as 'income' | 'expense' });
+  const [incomeFrequency, setIncomeFrequency] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
 
   const addMutation = useMutation({
     mutationFn: addTransaction,
@@ -51,12 +52,19 @@ const Dashboard = () => {
   const handleQuickSubmit = async () => {
     if (!quickTx.amount) return;
     const category = quickTx.type === 'income' ? 'Income' : quickTx.category;
+    const freqLabel = quickTx.type === 'income'
+      ? (incomeFrequency === 'daily' ? 'Daily' : incomeFrequency === 'weekly' ? 'Weekly' : 'Monthly')
+      : '';
+    const baseDesc = quickTx.description || category;
+    const description = quickTx.type === 'income'
+      ? (quickTx.description ? `${baseDesc} (${freqLabel})` : `${freqLabel} income`)
+      : baseDesc;
     if (!isOnline()) {
       await saveOfflineTransaction({
         amount: parseInt(quickTx.amount),
         type: quickTx.type,
         category,
-        description: quickTx.description || category,
+        description,
         transaction_date: new Date().toISOString().split('T')[0],
       });
       setShowQuickAdd(false);
@@ -68,7 +76,7 @@ const Dashboard = () => {
       amount: parseInt(quickTx.amount),
       type: quickTx.type,
       category,
-      description: quickTx.description || category,
+      description,
     });
   };
 
@@ -278,6 +286,27 @@ const Dashboard = () => {
                     {t('dash.type.income')}
                   </button>
                 </div>
+
+                {/* Income frequency */}
+                {quickTx.type === 'income' && (
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1.5 block">Frequency</label>
+                    <div className="flex gap-2">
+                      {(['daily', 'weekly', 'monthly'] as const).map(f => (
+                        <button
+                          key={f}
+                          onClick={() => setIncomeFrequency(f)}
+                          className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
+                            incomeFrequency === f ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
 
                 {/* Quick amounts */}
                 <div>
