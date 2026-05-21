@@ -36,6 +36,7 @@ const Dashboard = () => {
   });
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [quickTx, setQuickTx] = useState({ amount: '', category: 'Food', description: '', type: 'expense' as 'income' | 'expense' });
+  const [incomeFrequency, setIncomeFrequency] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
 
   const addMutation = useMutation({
     mutationFn: addTransaction,
