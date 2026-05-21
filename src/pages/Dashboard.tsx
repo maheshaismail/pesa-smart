@@ -52,12 +52,19 @@ const Dashboard = () => {
   const handleQuickSubmit = async () => {
     if (!quickTx.amount) return;
     const category = quickTx.type === 'income' ? 'Income' : quickTx.category;
+    const freqLabel = quickTx.type === 'income'
+      ? (incomeFrequency === 'daily' ? 'Daily' : incomeFrequency === 'weekly' ? 'Weekly' : 'Monthly')
+      : '';
+    const baseDesc = quickTx.description || category;
+    const description = quickTx.type === 'income'
+      ? (quickTx.description ? `${baseDesc} (${freqLabel})` : `${freqLabel} income`)
+      : baseDesc;
     if (!isOnline()) {
       await saveOfflineTransaction({
         amount: parseInt(quickTx.amount),
         type: quickTx.type,
         category,
-        description: quickTx.description || category,
+        description,
         transaction_date: new Date().toISOString().split('T')[0],
       });
       setShowQuickAdd(false);
@@ -69,7 +76,7 @@ const Dashboard = () => {
       amount: parseInt(quickTx.amount),
       type: quickTx.type,
       category,
-      description: quickTx.description || category,
+      description,
     });
   };
 
